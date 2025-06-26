@@ -8,11 +8,11 @@ use TelegramBot\Api\BotApi;
 use VK\Client\VKApiClient;
 class Vk2Tg
 {
-    private  $useTgApi = true;
-    private  $enableNotification = false;
+    private bool $useTgApi = true;
+    private bool $enableNotification = false;
     /** @var BotApi */
     private $tgBot;
-    private $excludeVkPostIds = [
+    private array $excludeVkPostIds = [
         5200, // кнопка \"пожертвовать\"
         5279, // "text":"Здравствуй, Всемирный день философии!\n#развлекаемся@deism"
         5288, // "text":"Пришла в голову идея создать темы
@@ -81,7 +81,7 @@ class Vk2Tg
     /** @var \Psr\Log\LoggerInterface */
     private $logger;
 
-    private $vk;
+    private VKApiClient $vk;
 
     /** @var int */
     private $vkLastPostDateTmp;

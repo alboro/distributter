@@ -3,9 +3,9 @@
 namespace Sc;
 class Storage implements \JsonSerializable
 {
-    private  $lastDate;
+    private int $lastDate;
 
-    private  $lastIds;
+    private LimitedList $lastIds;
 
     public function __construct()
     {
