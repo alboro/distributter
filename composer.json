@@ -1,0 +1,16 @@
+{
+    "require": {
+        "ext-json": "*",
+        "telegram-bot/api": "^2.3",
+        "longman/telegram-bot": "*",
+        "symfony/monolog-bundle": "^3.3",
+        "monolog/monolog": "^1.24",
+        "vlucas/phpdotenv": "^5.4",
+        "vkcom/vk-php-sdk": "^5.101"
+    },
+    "autoload": {
+        "psr-4": {
+            "Sc\\": "src/Sc/"
+        }
+    }
+}
