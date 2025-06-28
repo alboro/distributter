@@ -10,3 +10,4 @@ bin/.env
 new_storage.json
 vendor/
 storage.json
+deploy.conf

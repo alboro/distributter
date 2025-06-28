@@ -36,3 +36,32 @@ docker run --env-file .env -v $(pwd)/vk_last_post_date.txt:/app/vk_last_post_dat
 docker logs -f <container_id>
 ```
 
+## Deploy
+```sh
+# Настройка переменных окружения (один раз)
+export DEPLOY_HOST="your-server.com"
+export DEPLOY_USER="deploy" 
+export DEPLOY_PATH="/var/www/vk2tg"
+export SERVICE_NAME="vk2tg"
+```
+
+```sh
+# Загрузить конфигурацию и выполнить деплой
+source deploy.conf && ./bin/deploy.sh
+
+# Деплой с подтверждением
+source deploy.conf && ./bin/deploy.sh deploy
+
+# Принудительный деплой без подтверждения  
+source deploy.conf && ./bin/deploy.sh force
+
+# Откат к предыдущей версии
+source deploy.conf && ./bin/deploy.sh rollback
+
+# Проверить статус (теперь показывает cron задания)
+source deploy.conf && ./bin/deploy.sh status
+
+# Просмотр логов в реальном времени
+source deploy.conf && ./bin/deploy.sh logs
+
+```
