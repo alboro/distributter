@@ -11,3 +11,4 @@ log.log
 bin/.env
 new_storage.json
 vendor/
+storage.json
