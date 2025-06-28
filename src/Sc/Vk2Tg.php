@@ -14,7 +14,7 @@ class Vk2Tg
     private $tgBot;
     private array $excludeVkPostIds = [
         5200, // кнопка \"пожертвовать\"
-        5279, // "text":"Здравствуй, Всемирный день философии!\n#развлекаемся@deism"
+        5279, // "text":"Здравствуй, Всем��рный день философии!\n#развлекаемся@deism"
         5288, // "text":"Пришла в голову идея создать темы
         5356, // "text":"В пятницу 25-ого
         5397, // "text":"Деистический VS деистский. Как вообще правильно?
@@ -42,7 +42,7 @@ class Vk2Tg
         1141, // "text":"Кто читал? Поделитесь впечатлениями...\nЯ сейчас читаю...
         1330, // "text":"рекомендую"
         1345, // "text":"Вниманию деистов, деисток и деистят! У нас в сообществе  новый администратор [id151646553|Рамоныч Усов].
-        1498, // "text":"Если хотите звоните мне в скайп, могу вечерком порассуждать о деизме и мироустройстве ;-)\nп.с. скайп в личку
+        1498, // "text":"Если хотите звоните мне в скайп, могу вечерком порассуждать о деизме и мироустройс��ве ;-)\nп.с. скайп в личку
         1579, //n<a href='https://vk.com/video82515593_165679890'>https://vk.com/video82515593_165679890</a>\nсовременные деисты
         1664, // "text":"советую почитать:\nhttp://ru-deism.livejournal.com
         1720, // "text":"интересная статистика группы
@@ -91,6 +91,7 @@ class Vk2Tg
 
     public function __construct()
     {
+        $this->useTgApi    = !getenv('DRY_RUN');
         $this->vkToken     = getenv('VK_TOKEN');
         $this->vkGroupId   = getenv('VK_GROUP_ID');
         $this->storage     = Storage::load();
@@ -104,6 +105,7 @@ class Vk2Tg
 
         $this->logger = new Logger('vk2tg');
         $this->logger->pushHandler(new StreamHandler(STDOUT, Logger::DEBUG));
+        $this->logger->pushHandler(new StreamHandler(__DIR__ . '/../../log.log', Logger::ERROR));
     }
 
     /**
@@ -149,9 +151,9 @@ class Vk2Tg
         $vkData = $this->vk->wall()->get($this->vkToken, [
             'owner_id' => $this->vkGroupId,
             'offset' => 0,
-            'count' => 5,
+            'count' => (int) (getenv('ITEM_COUNT') ?: 5),
         ]);
-        // var_export($vkData); die;
+        // $this->logger->debug('got data', ['count' => $vkData['count'], 'items' => $vkData['items']]);
 
         if (!isset($vkData['items'])) {
             $fileName = sprintf('empty_response_%d.txt', time());
@@ -187,9 +189,20 @@ class Vk2Tg
         $text = $vkItem['text'];
         $vkItemId = (int)$vkItem['id'];
 
-        if (isset($vkItem['signer_id'])) {
+        // Определяем автора на основе явного указания в тексте поста
+        if (isset($vkItem['signer_id']) /*&& $this->shouldShowAuthor($text)*/) {
             $response = $this->vk->users()->get(getenv('VK_TOKEN'), [
                 'user_ids'  => [$vkItem['signer_id']],
+                'fields'    => [],
+            ]);
+            $author = $response[0]['first_name'] . ' ' . $response[0]['last_name'];
+            if ($author === 'DELETED') {
+                unset($author);
+            }
+        } elseif (isset($vkItem['check_sign']) && $vkItem['check_sign'] === true && isset($vkItem['post_author_data']['author'])/* && $this->shouldShowAuthor($text)*/) {
+            // Если включена подпись и есть данные автора
+            $response = $this->vk->users()->get(getenv('VK_TOKEN'), [
+                'user_ids'  => [$vkItem['post_author_data']['author']],
                 'fields'    => [],
             ]);
             $author = $response[0]['first_name'] . ' ' . $response[0]['last_name'];
@@ -220,6 +233,7 @@ class Vk2Tg
         if (count($photos) === 1 && strlen($text) < 1000) {
             if ($author !== 'Александр Демченко' && strlen($text) > 500) {
                 $text .= "\n" . '© ' . $author;
+                unset($author);
             }
             try {
                 $messageId = !$this->useTgApi ? 123 : $this->tgBot->sendPhoto($this->tgChannelId, $photos[0], $text, null, null, !$this->enableNotification, 'html')->getMessageId();
@@ -297,7 +311,7 @@ class Vk2Tg
                 $link = sprintf('https://vk.com/video%s_%s', $vkAttachment['video']['owner_id'], $vkAttachment['video']['id']);
                 if (isset($vkAttachment['video']['platform'])) {
                     $requestTimeout = stream_context_create(['http' => ['timeout' => getenv('REQUEST_TIMEOUT_SEC')]]);
-                    preg_match('/<iframe [^>]+src=\\\"([^\"]+)\?/', file_get_contents($link, false, $requestTimeout), $match);
+                    preg_match('/<iframe [^>]+src="([^"]+)\?/', file_get_contents($link, false, $requestTimeout), $match);
                 }
                 if (isset($match[1])) {
                     $videos[] = str_replace('\\', '', $match[1]);
@@ -312,10 +326,6 @@ class Vk2Tg
 
     private function validate(array $vkItem)
     {
-        if ((int)$vkItem['date'] <= $this->storage->getLastDate()) {
-            // $this->logger->debug('Skip post', ['reason' => 'already posted by date', 'id' => $vkItem['id'], 'date' => $vkItem['date']]);
-            // throw new \RuntimeException();;
-        }
         if (0 === $this->vkLastPostDateTmp && $this->storage->getLastDate() < (int)$vkItem['date']) {
             $this->logger->debug('Set new last post date', ['date' => $vkItem['date']]);
             $this->vkLastPostDateTmp = (int)$vkItem['date'];
@@ -330,6 +340,11 @@ class Vk2Tg
         }
         if ($vkItem['marked_as_ads']) {
             $this->logger->debug('Skip post', ['reason' => 'marked as ads', 'id' => $vkItem['id']]);
+            throw new \RuntimeException();
+        }
+        $ignoreTag = getenv('TAG_OF_IGNORE') ?: '#vk';
+        if (preg_match('/(?:^|\s)' . preg_quote($ignoreTag, '/') . '(?:\s|$)/i', $vkItem['text'])) {
+            $this->logger->debug('Skip post', ['reason' => 'tagged with ignore tag', 'id' => $vkItem['id']]);
             throw new \RuntimeException();
         }
         if ($this->storage->hasId((int) $vkItem['id'])) {
