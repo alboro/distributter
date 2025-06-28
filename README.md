@@ -65,3 +65,14 @@ source deploy.conf && ./bin/deploy.sh status
 source deploy.conf && ./bin/deploy.sh logs
 
 ```
+
+```txt
+Vk2Tg (координатор)
+├── AppConfig (конфигурация)
+├── Storage (хранилище)
+├── PostFilter (фильтрация)
+├── VkAttachmentParser (парсинг)
+├── AuthorService (авторы)
+├── MessageFormatter (форматирование)
+└── TelegramSender (отправка)
+```
