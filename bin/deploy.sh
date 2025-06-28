@@ -58,14 +58,25 @@ check_ssh_connection() {
 ssh_exec() {
     local command="$1"
     local description="${2:-выполнение команды}"
+    local show_output="${3:-false}"
 
     log "DEBUG" "Выполняем на сервере: $command"
 
-    ssh -i "$SSH_KEY" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
-        "cd '$SERVER_PATH' && $command" || {
-        log "ERROR" "Ошибка при $description"
-        return 1
-    }
+    if [ "$show_output" = "true" ]; then
+        # Показываем вывод команды
+        ssh -i "$SSH_KEY" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
+            "cd '$SERVER_PATH' && $command" || {
+            log "ERROR" "Ошибка при $description"
+            return 1
+        }
+    else
+        # Скрываем вывод команды, только возвращаем результат
+        ssh -i "$SSH_KEY" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
+            "cd '$SERVER_PATH' && $command" 2>/dev/null || {
+            log "ERROR" "Ошибка при $description"
+            return 1
+        }
+    fi
 }
 
 # Проверка состояния удаленного репозитория
@@ -119,7 +130,7 @@ check_remote_repo() {
 deploy_to_server() {
     log "INFO" "Начинаем деплой на сервер $SERVER_HOST"
 
-    # Соз��аем команду для обновления
+    # Создаем команду для обновления
     local update_command="
         set -e
 
@@ -129,7 +140,11 @@ deploy_to_server() {
         cp -r . \"\$backup_dir/\" 2>/dev/null || true
         echo \"\$backup_dir\" > .last_backup
 
-        echo '[INFO] Обновляе�� код...'
+        echo '[INFO] Сбрасываем локальные изменения...'
+        git reset --hard HEAD
+        git clean -fd
+
+        echo '[INFO] Обновляем код...'
         git checkout $DEPLOY_BRANCH
         git pull origin $DEPLOY_BRANCH
 
@@ -176,13 +191,13 @@ rollback_on_server() {
         set -e
 
         if [ ! -f .last_backup ]; then
-            echo '[ERROR] Файл р��зервной копии не найден'
+            echo '[ERROR] Файл резервной копии не найден'
             exit 1
         fi
 
         backup_path=\$(cat .last_backup)
         if [ ! -d \"\$backup_path\" ]; then
-            echo '[ERROR] Резервна�� копия не найдена'
+            echo '[ERROR] Резервная копия не найдена'
             exit 1
         fi
 
