@@ -166,8 +166,9 @@ class Vk2Tg
         $this->vkLastPostDateTmp = 0;
         foreach (array_reverse($vkData['items']) as $vkItem) {
             try {
-                sleep(1);
                 $this->processItem($vkItem);
+                sleep(1);
+            } catch (\RuntimeException $e) {
             } catch (\Throwable $e) {
                 $this->logger->error(get_class($e) . ': ' . $e->getMessage());
             }
