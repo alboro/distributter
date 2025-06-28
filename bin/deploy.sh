@@ -130,57 +130,39 @@ check_remote_repo() {
 deploy_to_server() {
     log "INFO" "Начинаем деплой на сервер $SERVER_HOST"
 
-    # Создаем команду для обновления
-    local update_command="
-        set -e
-
-        echo '[INFO] Создаем резервную копию...'
-        backup_dir=\"/tmp/vk2tg_backup_\$(date +%Y%m%d_%H%M%S)\"
-        mkdir -p \"\$backup_dir\"
-        cp -r . \"\$backup_dir/\" 2>/dev/null || true
-        echo \"\$backup_dir\" > .last_backup
-
-        echo '[INFO] Сбрасываем локальные изменения...'
-        git reset --hard HEAD
-        git clean -fd
-
-        echo '[INFO] Обновляем код...'
-        git checkout $DEPLOY_BRANCH
-        git pull origin $DEPLOY_BRANCH
-
-        echo '[INFO] Обновляем зависимости...'
-        composer install --no-dev --optimize-autoloader --no-interaction
-
-        echo '[INFO] Проверяем синтаксис...'
-        php -l src/Sc/Vk2Tg.php
-
-        echo '[INFO] Проверяем работоспособность...'
-        if [ -f bin/test.php ]; then
-            timeout 30 php bin/test.php || echo '[WARN] Базовые тесты не прошли'
-        fi
-
-        echo '[INFO] Записываем лог деплоя...'
-        echo \"\$(date '+%Y-%m-%d %H:%M:%S') [DEPLOY] Успешно обновлено до коммита \$(git rev-parse --short HEAD)\" >> log.log
-
-        echo '[INFO] Деплой завершен успешно!'
-        echo '[INFO] Новый коммит:' \$(git rev-parse --short HEAD)
-        echo '[INFO] Приложение готово к работе по крону'
-
-        # Удаляем резервную копию при успешном деплое
-        rm -f .last_backup
-        rm -rf \"\$backup_dir\" 2>/dev/null || true
-    "
-
     log "INFO" "Выполняем обновление на сервере..."
 
-    if ssh -i "$SSH_KEY" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
-       "cd '$SERVER_PATH' && bash -c '$update_command'"; then
-        log "INFO" "Деплой выполнен успешно!"
-        log "INFO" "Приложение готово к запуску по крону"
-    else
-        log "ERROR" "Ошибка при выполнении деплоя"
-        exit 1
-    fi
+    # Выполняем команды деплоя пошагово для лучшей диагностики
+    log "INFO" "Шаг 1: Создание резервной копии"
+    ssh -i "$SSH_KEY" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
+        "cd '$SERVER_PATH' && backup_dir=\"/tmp/vk2tg_backup_\$(date +%Y%m%d_%H%M%S)\" && mkdir -p \"\$backup_dir\" && cp -r . \"\$backup_dir/\" && echo \"\$backup_dir\" > .last_backup && echo 'Резервная копия создана: '\$backup_dir"
+
+    log "INFO" "Шаг 2: Сброс локальных изменений"
+    ssh -i "$SSH_KEY" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
+        "cd '$SERVER_PATH' && git reset --hard HEAD && git clean -fd && echo 'Локальные изменения сброшены'"
+
+    log "INFO" "Шаг 3: Обновление кода из Git"
+    ssh -i "$SSH_KEY" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
+        "cd '$SERVER_PATH' && git checkout $DEPLOY_BRANCH && git pull origin $DEPLOY_BRANCH"
+
+    log "INFO" "Шаг 4: Обновление зависимостей Composer"
+    ssh -i "$SSH_KEY" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
+        "cd '$SERVER_PATH' && composer install --no-dev --optimize-autoloader --no-interaction"
+
+    log "INFO" "Шаг 5: Проверка синтаксиса"
+    ssh -i "$SSH_KEY" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
+        "cd '$SERVER_PATH' && php -l src/Sc/Vk2Tg.php"
+
+    log "INFO" "Шаг 6: Запись лога деплоя"
+    ssh -i "$SSH_KEY" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
+        "cd '$SERVER_PATH' && echo \"\$(date '+%Y-%m-%d %H:%M:%S') [DEPLOY] Успешно обновлено до коммита \$(git rev-parse --short HEAD)\" >> log.log && echo 'Новый коммит: '\$(git rev-parse --short HEAD)"
+
+    log "INFO" "Шаг 7: Очистка резервной копии"
+    ssh -i "$SSH_KEY" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
+        "cd '$SERVER_PATH' && rm -f .last_backup && backup_dir=\$(cat .last_backup 2>/dev/null || echo '') && [ -n \"\$backup_dir\" ] && rm -rf \"\$backup_dir\" 2>/dev/null && echo 'Резервная копия удалена' || echo 'Резервная копия не найдена'"
+
+    log "INFO" "Деплой выполнен успешно!"
+    log "INFO" "Приложение готово к запуску по крону"
 }
 
 # Функция отката
