@@ -6,8 +6,6 @@ new_storage.json
 log.log
 /vendor
 /bin/.env
-
-
 bin/.env
 new_storage.json
 vendor/
