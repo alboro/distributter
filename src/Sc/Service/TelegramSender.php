@@ -11,6 +11,7 @@ use Sc\Storage;
 readonly class TelegramSender
 {
     private const string CAPTION_TOO_LONG_ERROR = 'Bad Request: MEDIA_CAPTION_TOO_LONG';
+    private const int MAX_MESSAGE_LENGTH = 4000; // Оставляем запас от лимита Telegram в 4096
 
     public function __construct(
         private BotApi $tgBot,
@@ -55,26 +56,158 @@ readonly class TelegramSender
             return;
         }
 
-        if (!$this->useTgApi) {
-            $this->logDryRun('Send message', $vkItemId, $text);
-            return;
+        // Разбиваем длинные сообщения на части с сохранением HTML структуры
+        $messageParts = $this->splitMessageSafely($text);
+
+        foreach ($messageParts as $index => $part) {
+            if (!$this->useTgApi) {
+                $this->logDryRun('Send message', $vkItemId, $part);
+                continue;
+            }
+
+            try {
+                $message = $this->tgBot->sendMessage(
+                    chatId: $this->channelId,
+                    text: $part,
+                    parseMode: 'html',
+                    disablePreview: false,
+                    replyToMessageId: null,
+                    replyMarkup: null,
+                    disableNotification: !$this->enableNotification
+                );
+
+                $this->handleSuccessfulSend($vkItemId, $message->getMessageId(), $part, null, $index + 1, count($messageParts));
+            } catch (\Throwable $e) {
+                $this->handleSendError($vkItemId, $e, ['text' => $part, 'part' => $index + 1]);
+            }
+        }
+    }
+
+    /**
+     * Разбивает длинное сообщение на части с сохранением HTML структуры
+     */
+    private function splitMessageSafely(string $text): array
+    {
+        if (strlen($text) <= self::MAX_MESSAGE_LENGTH) {
+            return [$text];
         }
 
-        try {
-            $message = $this->tgBot->sendMessage(
-                chatId: $this->channelId,
-                text: $text,
-                parseMode: 'html',
-                disablePreview: false,
-                replyToMessageId: null,
-                replyMarkup: null,
-                disableNotification: !$this->enableNotification
-            );
+        $parts = [];
+        $currentPart = '';
+        $htmlStack = [];
+        $i = 0;
 
-            $this->handleSuccessfulSend($vkItemId, $message->getMessageId(), $text);
-        } catch (\Throwable $e) {
-            $this->handleSendError($vkItemId, $e, ['text' => $text]);
+        while ($i < strlen($text)) {
+            $char = $text[$i];
+
+            // Проверяем на HTML тег
+            if ($char === '<') {
+                $tagEnd = strpos($text, '>', $i);
+                if ($tagEnd !== false) {
+                    $tag = substr($text, $i, $tagEnd - $i + 1);
+
+                    // Проверяем, поместится ли тег в текущую часть
+                    if (strlen($currentPart . $tag) > self::MAX_MESSAGE_LENGTH) {
+                        // Закрываем открытые теги в текущей части
+                        $currentPart .= $this->closeOpenTags($htmlStack);
+                        $parts[] = $currentPart;
+
+                        // Начинаем новую часть с открытия тегов
+                        $currentPart = $this->reopenTags($htmlStack);
+                    }
+
+                    $currentPart .= $tag;
+                    $this->updateHtmlStack($tag, $htmlStack);
+                    $i = $tagEnd + 1;
+                    continue;
+                }
+            }
+
+            // Обычный символ
+            if (strlen($currentPart . $char) > self::MAX_MESSAGE_LENGTH) {
+                // Пытаемся найти ближайший пробел для разрыва
+                $breakPoint = $this->findSafeBreakPoint($currentPart);
+
+                if ($breakPoint > 0) {
+                    $partToSave = substr($currentPart, 0, $breakPoint);
+                    $remainder = substr($currentPart, $breakPoint);
+
+                    $partToSave .= $this->closeOpenTags($htmlStack);
+                    $parts[] = $partToSave;
+
+                    $currentPart = $this->reopenTags($htmlStack) . $remainder . $char;
+                } else {
+                    // Если не можем найти безопасную точку разрыва, принудительно разбиваем
+                    $currentPart .= $this->closeOpenTags($htmlStack);
+                    $parts[] = $currentPart;
+                    $currentPart = $this->reopenTags($htmlStack) . $char;
+                }
+            } else {
+                $currentPart .= $char;
+            }
+
+            $i++;
         }
+
+        if (!empty($currentPart)) {
+            $parts[] = $currentPart;
+        }
+
+        return array_filter($parts, fn($part) => !empty(trim($part)));
+    }
+
+    /**
+     * Обновляет стек HTML тегов
+     */
+    private function updateHtmlStack(string $tag, array &$htmlStack): void
+    {
+        if (preg_match('/<\/(\w+)>/', $tag, $matches)) {
+            // Закрывающий тег - удаляем из стека
+            $tagName = $matches[1];
+            $htmlStack = array_filter($htmlStack, fn($openTag) => !str_contains($openTag, $tagName));
+        } elseif (preg_match('/<(\w+)(?:\s[^>]*)?>/', $tag, $matches) && !str_ends_with($tag, '/>')) {
+            // Открывающий тег (не самозакрывающийся) - добавляем в стек
+            $htmlStack[] = $tag;
+        }
+    }
+
+    /**
+     * Закрывает все открытые HTML теги
+     */
+    private function closeOpenTags(array $htmlStack): string
+    {
+        $closingTags = '';
+        foreach (array_reverse($htmlStack) as $openTag) {
+            if (preg_match('/<(\w+)/', $openTag, $matches)) {
+                $closingTags .= '</' . $matches[1] . '>';
+            }
+        }
+        return $closingTags;
+    }
+
+    /**
+     * Переоткрывает HTML теги в новой части сообщения
+     */
+    private function reopenTags(array $htmlStack): string
+    {
+        return implode('', $htmlStack);
+    }
+
+    /**
+     * Находит безопасную точку для разрыва сообщения (по пробелу или переносу строки)
+     */
+    private function findSafeBreakPoint(string $text): int
+    {
+        $length = strlen($text);
+        $maxSearchBack = min(200, $length); // Ищем в последних 200 символах
+
+        for ($i = $length - 1; $i >= $length - $maxSearchBack; $i--) {
+            if (in_array($text[$i], [' ', "\n", "\t", '-', '–', '—'], true)) {
+                return $i + 1;
+            }
+        }
+
+        return 0; // Безопасная точка не найдена
     }
 
     private function logDryRun(string $action, int $vkItemId, string $text, ?string $photo = null): void
@@ -91,11 +224,21 @@ readonly class TelegramSender
         $this->logger->info("DRY RUN: $action", $context);
     }
 
-    private function handleSuccessfulSend(int $vkItemId, int $messageId, string $text, ?string $photo = null): void
-    {
+    private function handleSuccessfulSend(
+        int $vkItemId,
+        int $messageId,
+        string $text,
+        ?string $photo = null,
+        int $partNumber = 1,
+        int $totalParts = 1
+    ): void {
         $this->storage->addId($vkItemId, $messageId);
 
         $logAction = $photo !== null ? 'Send new photo' : 'Send new post';
+        if ($totalParts > 1) {
+            $logAction .= " (part $partNumber/$totalParts)";
+        }
+
         $context = [
             'id' => $vkItemId,
             'tgId' => $messageId,
@@ -104,6 +247,10 @@ readonly class TelegramSender
 
         if ($photo !== null) {
             $context['photo'] = $photo;
+        }
+
+        if ($totalParts > 1) {
+            $context['part'] = "$partNumber/$totalParts";
         }
 
         $this->logger->info($logAction, $context);
