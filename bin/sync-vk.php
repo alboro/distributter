@@ -12,7 +12,8 @@ $dotenv->safeLoad();
 $vk2tg = new Vk2Tg();
 try {
     $vk2tg->send();
-    // $vk2tg->pin();
 } catch (\Throwable $e) {
-    echo get_class($e) . ': ' . $e->getMessage();
+    $vk2tg->logger()->error(
+        get_class($e) . ': ' . $e->getMessage()
+    );
 }

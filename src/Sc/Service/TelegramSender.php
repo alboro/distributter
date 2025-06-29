@@ -19,8 +19,34 @@ readonly class TelegramSender
         private bool $useTgApi,
         private bool $enableNotification,
         private LoggerInterface $logger,
-        private Storage $storage
+        private Storage $storage,
+        private MessageFormatter $messageFormatter
     ) {}
+
+    /**
+     * Отправляет пост в Telegram, автоматически выбирая оптимальный формат
+     */
+    public function sendPost(int $vkItemId, string $text, array $videos, array $links, array $photos, ?string $author): void
+    {
+        // Форматируем сообщение
+        $formattedText = $this->messageFormatter->formatMessage($text, $videos, $links, $photos, $author);
+
+        // Пытаемся отправить как фото с подписью
+        if ($this->messageFormatter->shouldSendAsPhoto($photos, $formattedText)) {
+            try {
+                $this->sendPhoto($vkItemId, $photos[0], $formattedText);
+                return;
+            } catch (\Exception $e) {
+                if ($e->getMessage() !== self::CAPTION_TOO_LONG_ERROR) {
+                    return;
+                }
+                // Если подпись слишком длинная, продолжаем и отправляем как обычное сообщение
+            }
+        }
+
+        // Отправляем как текстовое сообщение
+        $this->sendMessage($vkItemId, $formattedText);
+    }
 
     public function sendPhoto(int $vkItemId, string $photoUrl, string $caption): void
     {
@@ -50,7 +76,7 @@ readonly class TelegramSender
         }
     }
 
-    public function sendMessage(int $vkItemId, string $text): void
+    private function sendMessage(int $vkItemId, string $text): void
     {
         if (empty($text)) {
             return;

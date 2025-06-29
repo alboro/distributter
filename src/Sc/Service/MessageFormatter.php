@@ -33,13 +33,6 @@ readonly class MessageFormatter
         return count($photos) === 1 && strlen($text) < self::CAPTION_MAX_LENGTH;
     }
 
-    public function validatePhotoPost(string $text, array $photos): void
-    {
-        if (empty($text) && !empty($photos)) {
-            throw new \RuntimeException('Prevent sending photo with no text');
-        }
-    }
-
     private function prependVideos(string $text, array $videos): string
     {
         return array_reduce(

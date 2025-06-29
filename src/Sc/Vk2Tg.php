@@ -6,6 +6,7 @@ namespace Sc;
 
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
+use Psr\Log\LoggerInterface;
 use TelegramBot\Api\BotApi;
 use VK\Client\VKApiClient;
 use Sc\Config\AppConfig;
@@ -18,11 +19,10 @@ final class Vk2Tg
     private readonly AppConfig $config;
     private readonly VKApiClient $vk;
     private readonly Storage $storage;
-    private readonly \Psr\Log\LoggerInterface $logger;
+    private readonly LoggerInterface $logger;
     private readonly PostFilter $postFilter;
     private readonly VkAttachmentParser $attachmentParser;
     private readonly AuthorService $authorService;
-    private readonly MessageFormatter $messageFormatter;
     private readonly TelegramSender $telegramSender;
     private int $vkLastPostDateTmp = 0;
 
@@ -34,6 +34,11 @@ final class Vk2Tg
 
         $this->logger = $this->createLogger();
         $this->initializeServices();
+    }
+
+    public function logger(): \Psr\Log\LoggerInterface
+    {
+        return $this->logger;
     }
 
     public function send(): void
@@ -107,15 +112,15 @@ final class Vk2Tg
             logger: $this->logger
         );
 
-        $this->messageFormatter = new MessageFormatter();
-
+        // MessageFormatter теперь создается внутри TelegramSender
         $this->telegramSender = new TelegramSender(
             tgBot: $tgBot,
             channelId: $this->config->tgChannelId,
             useTgApi: $this->config->useTgApi,
             enableNotification: $this->config->enableNotification,
             logger: $this->logger,
-            storage: $this->storage
+            storage: $this->storage,
+            messageFormatter: new MessageFormatter()
         );
     }
 
@@ -180,31 +185,8 @@ final class Vk2Tg
             $this->attachmentParser->parsePhotos($vkItem)
         ];
 
-        // Проверяем валидность поста с фото
-        $this->messageFormatter->validatePhotoPost($text, $photos);
-
-        // Форматируем и отправляем сообщение
-        $formattedText = $this->messageFormatter->formatMessage($text, $videos, $links, $photos, $author);
-        $this->sendToTelegram($vkItemId, $formattedText, $photos);
-    }
-
-    private function sendToTelegram(int $vkItemId, string $text, array $photos): void
-    {
-        // Пытаемся отправить как фото с подписью
-        if ($this->messageFormatter->shouldSendAsPhoto($photos, $text)) {
-            try {
-                $this->telegramSender->sendPhoto($vkItemId, $photos[0], $text);
-                return;
-            } catch (\Exception $e) {
-                if ($e->getMessage() !== 'Bad Request: MEDIA_CAPTION_TOO_LONG') {
-                    return;
-                }
-                // Если подпись слишком длинная, продолжаем и отправляем как обычное сообщение
-            }
-        }
-
-        // Отправляем как текстовое сообщение
-        $this->telegramSender->sendMessage($vkItemId, $text);
+        // Отправляем в Telegram (форматирование происходит внутри TelegramSender)
+        $this->telegramSender->sendPost($vkItemId, $text, $videos, $links, $photos, $author);
     }
 
     private function updateLastPostDate(array $vkItem): void
