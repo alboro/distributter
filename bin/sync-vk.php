@@ -4,16 +4,16 @@ require_once __DIR__ . '/../vendor/autoload.php';
 
 error_reporting(-1);
 
-use Sc\Vk2Tg;
+use Sc\Synchronizer;
 
 $dotenv = Dotenv\Dotenv::createUnsafeImmutable(__DIR__);
 $dotenv->safeLoad();
 
-$vk2tg = new Vk2Tg();
+$syncer = new Synchronizer();
 try {
-    $vk2tg->send();
+    $syncer->invoke();
 } catch (\Throwable $e) {
-    $vk2tg->logger()->error(
+    $syncer->logger()->error(
         get_class($e) . ': ' . $e->getMessage()
     );
 }

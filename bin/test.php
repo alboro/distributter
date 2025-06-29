@@ -5,8 +5,8 @@ require_once __DIR__ . '/../vendor/autoload.php';
 
 try {
     // Проверяем автозагрузку классов
-    if (!class_exists('Sc\Vk2Tg')) {
-        throw new Exception('Класс Sc\Vk2Tg не найден');
+    if (!class_exists('Sc\Synchronizer')) {
+        throw new Exception('Класс Sc\Synchronizer не найден');
     }
 
     // Проверяем наличие основных переменных окружения
@@ -24,7 +24,7 @@ try {
     }
 
     // Проверяем создание основного объекта
-    $vk2tg = new Sc\Vk2Tg();
+    $vk2tg = new Sc\Synchronizer();
 
     echo "OK: Все базовые тесты прошли успешно\n";
     exit(0);

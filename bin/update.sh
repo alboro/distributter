@@ -74,7 +74,7 @@ fi
 
 # Проверяем работоспособность
 log "Проверяем работоспособность..."
-if php -l src/Sc/Vk2Tg.php > /dev/null 2>&1; then
+if php -l src/Sc/Synchronizer.php > /dev/null 2>&1; then
     log "Проверка синтаксиса прошла успешно"
 else
     log "ОШИБКА: Проблемы с синтаксисом PHP"

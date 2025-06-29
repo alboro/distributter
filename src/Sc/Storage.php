@@ -3,24 +3,12 @@
 namespace Sc;
 class Storage implements \JsonSerializable
 {
-    private int $lastDate;
 
     private LimitedList $lastIds;
 
     public function __construct()
     {
-        $this->lastDate = time();
         $this->lastIds  = new LimitedList(2000000);
-    }
-
-    public function setLastDate(int $lastDate): void
-    {
-        $this->lastDate = $lastDate;
-    }
-
-    public function getLastDate(): int
-    {
-        return $this->lastDate;
     }
 
     public function addId(int $id, int $mappedId): void
@@ -41,7 +29,6 @@ class Storage implements \JsonSerializable
     public function jsonSerialize(): array
     {
         return [
-            'date' => $this->lastDate,
             'items' => $this->lastIds,
         ];
     }
@@ -54,12 +41,11 @@ class Storage implements \JsonSerializable
 
         $content = file_get_contents($filePath);
         $content = json_decode($content, true);
-        if (empty($content) && !isset($content['date'], $content['items'])) {
+        if (empty($content) && !isset($content['items'])) {
             return new Storage();
         }
 
         $storage = new self();
-        $storage->setLastDate((int) $content['date']);
         $storage->lastIds->pushAll($content['items']);
 
         if (!$storage instanceof Storage) {

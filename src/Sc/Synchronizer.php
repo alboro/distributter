@@ -14,17 +14,16 @@ use Sc\Filter\{PostFilter, PostFilterException};
 use Sc\Parser\VkAttachmentParser;
 use Sc\Service\{AuthorService, MessageFormatter, TelegramSender};
 
-final class Vk2Tg
+final readonly class Synchronizer
 {
-    private readonly AppConfig $config;
-    private readonly VKApiClient $vk;
-    private readonly Storage $storage;
-    private readonly LoggerInterface $logger;
-    private readonly PostFilter $postFilter;
-    private readonly VkAttachmentParser $attachmentParser;
-    private readonly AuthorService $authorService;
-    private readonly TelegramSender $telegramSender;
-    private int $vkLastPostDateTmp = 0;
+    private AppConfig $config;
+    private VKApiClient $vk;
+    private Storage $storage;
+    private LoggerInterface $logger;
+    private PostFilter $postFilter;
+    private VkAttachmentParser $attachmentParser;
+    private AuthorService $authorService;
+    private TelegramSender $telegramSender;
 
     public function __construct()
     {
@@ -41,7 +40,7 @@ final class Vk2Tg
         return $this->logger;
     }
 
-    public function send(): void
+    public function invoke(): void
     {
         $this->logger->debug('Request posts');
 
@@ -170,7 +169,6 @@ final class Vk2Tg
 
     private function processPost(array $vkItem): void
     {
-        $this->updateLastPostDate($vkItem);
         $this->postFilter->validatePost($vkItem);
         $this->attachmentParser->validatePoll($vkItem);
 
@@ -189,20 +187,8 @@ final class Vk2Tg
         $this->telegramSender->sendPost($vkItemId, $text, $videos, $links, $photos, $author);
     }
 
-    private function updateLastPostDate(array $vkItem): void
-    {
-        if ($this->vkLastPostDateTmp === 0 && $this->storage->getLastDate() < (int)$vkItem['date']) {
-            $this->logger->debug('Set new last post date', ['date' => $vkItem['date']]);
-            $this->vkLastPostDateTmp = (int)$vkItem['date'];
-        }
-    }
-
     private function finalize(): void
     {
-        if ($this->vkLastPostDateTmp !== 0) {
-            $this->storage->setLastDate($this->vkLastPostDateTmp);
-        }
-
         if (!$this->config->isDryRun()) {
             $this->storage->save();
         }

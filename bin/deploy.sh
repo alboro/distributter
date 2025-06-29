@@ -151,7 +151,7 @@ deploy_to_server() {
 
     log "INFO" "Шаг 5: Проверка синтаксиса"
     ssh -i "$SSH_KEY" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
-        "cd '$SERVER_PATH' && php -l src/Sc/Vk2Tg.php"
+        "cd '$SERVER_PATH' && php -l src/Sc/Synchronizer.php"
 
     log "INFO" "Шаг 6: Запись лога деплоя"
     ssh -i "$SSH_KEY" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
