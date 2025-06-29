@@ -52,6 +52,7 @@ readonly class TelegramSender
     {
         if (!$this->useTgApi) {
             $this->logDryRun('Send photo', $vkItemId, $caption, $photoUrl);
+            $this->handleSuccessfulSend($vkItemId, random_int(900, 9000), $caption, $photoUrl);
             return;
         }
 
@@ -88,6 +89,7 @@ readonly class TelegramSender
         foreach ($messageParts as $index => $part) {
             if (!$this->useTgApi) {
                 $this->logDryRun('Send message', $vkItemId, $part);
+                $this->handleSuccessfulSend($vkItemId, random_int(900, 9000), $part, null, $index + 1, count($messageParts));
                 continue;
             }
 

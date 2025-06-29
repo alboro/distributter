@@ -189,9 +189,7 @@ final readonly class Synchronizer
 
     private function finalize(): void
     {
-        if (!$this->config->isDryRun()) {
-            $this->storage->save();
-        }
+        $this->storage->save();
 
         $this->logger->debug('Done.');
     }
