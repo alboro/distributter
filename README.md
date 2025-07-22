@@ -160,13 +160,6 @@ tail -f log.log
 tail -f MadelineProto.log
 ```
 
-### Check Synchronization Status
-```sh
-# View recent synchronization activity
-grep "Posts were retrieved" log.log | tail -10
-grep "Successfully" log.log | tail -10
-```
-
 ## Content Processing
 
 ### Supported Content Types
@@ -206,15 +199,6 @@ php bin/auth-telegram.php
 #### Rate Limiting
 The application includes automatic retry mechanisms with exponential backoff. Check logs for rate limit messages.
 
-#### Storage Issues
-```sh
-# Check storage file integrity
-php -l storage.v3.json
-```
-
-### Debug Mode
-Enable detailed logging by setting log level in the configuration or checking `log.log` for error details.
-
 ## Development
 
 ### Adding New Platforms
@@ -222,15 +206,6 @@ Enable detailed logging by setting log level in the configuration or checking `l
 2. Create new sender class implementing `SenderInterface`
 3. Add configuration classes in `Config/` directory
 4. Register new services in `Synchronizer`
-
-### Running Tests
-```sh
-# TODO: Tests are not yet implemented
-composer test
-```
-
-### Code Style
-The project follows PSR-12 coding standards with strict typing enabled.
 
 ## TODO
 * Add auto-tests and CI/CD pipeline
