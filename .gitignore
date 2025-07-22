@@ -1,0 +1,16 @@
+.idea/*
+/vendor/
+/bin/.env
+/session.madeline/*
+/bin/session.madeline/*
+/bin/MadelineProto.log
+/bin/squash-history.sh
+MadelineProto.log
+log.log
+deploy.conf
+test-vk-items.json
+storage.json
+storage.v*.json
+old_new_storage.json
+new_storage.json
+app.log

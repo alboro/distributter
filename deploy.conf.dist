@@ -1,0 +1,5 @@
+#!/bin/bash
+export DEPLOY_HOST="your-server.com"
+export DEPLOY_USER="deploy-user"
+export DEPLOY_PATH="/var/www/projects/distributter"
+export SSH_KEY="$HOME/.ssh/distributter"

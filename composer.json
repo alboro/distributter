@@ -1,0 +1,25 @@
+{
+    "require": {
+        "ext-json": "*",
+        "ext-curl": "*",
+        "telegram-bot/api": "^2.5",
+        "symfony/monolog-bundle": "^3.3",
+        "monolog/monolog": "^3.0",
+        "vlucas/phpdotenv": "^5.4",
+        "vkcom/vk-php-sdk": "^5.101",
+        "danog/madelineproto": "^8.0",
+        "irazasyed/telegram-bot-sdk": "^3.15",
+      "ext-posix": "*",
+      "ext-pcntl": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "Sc\\": "src/Sc/"
+        }
+    },
+    "scripts": {
+        "post-install-cmd": [
+            "chmod +x bin/*.sh"
+        ]
+    }
+}
