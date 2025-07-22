@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Sc\Model;
 
 /**
- * Value Object для ID поста с указанием системы источника
+ * Value Object for post ID with source system specified
  */
 readonly class PostId
 {

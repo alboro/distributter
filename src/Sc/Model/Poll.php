@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Sc\Model;
 
 /**
- * Модель опроса для синхронизации между социальными сетями
+ * Poll model for synchronization between social networks
  */
 readonly class Poll
 {
@@ -21,7 +21,7 @@ readonly class Poll
     }
 
     /**
-     * Проверяет, есть ли варианты ответов
+     * Checks if there are answer options
      */
     public function hasOptions(): bool
     {
@@ -29,7 +29,7 @@ readonly class Poll
     }
 
     /**
-     * Получает количество вариантов ответов
+     * Gets the number of answer options
      */
     public function getOptionsCount(): int
     {
@@ -37,7 +37,7 @@ readonly class Poll
     }
 
     /**
-     * Проверяет, истек ли срок опроса
+     * Checks if the poll has expired
      */
     public function isExpired(): bool
     {
@@ -45,7 +45,7 @@ readonly class Poll
     }
 
     /**
-     * Получает текстовое представление опроса
+     * Gets the text representation of the poll
      */
     public function getFormattedText(): string
     {

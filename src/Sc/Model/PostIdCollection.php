@@ -36,7 +36,7 @@ final class PostIdCollection implements IteratorAggregate, Countable
     }
 
     /**
-     * Проверить содержит ли коллекция указанный PostId
+     * Check if collection contains specified PostId
      */
     public function contains(PostId $postId): bool
     {
@@ -50,7 +50,7 @@ final class PostIdCollection implements IteratorAggregate, Countable
     }
 
     /**
-     * Фильтровать коллекцию по системе
+     * Filter collection by system
      */
     public function filterBySystem(string $systemName): self
     {
@@ -63,7 +63,7 @@ final class PostIdCollection implements IteratorAggregate, Countable
     }
 
     /**
-     * Получить все уникальные системы в коллекции
+     * Get all unique systems in collection
      *
      * @return string[]
      */
@@ -78,7 +78,7 @@ final class PostIdCollection implements IteratorAggregate, Countable
     }
 
     /**
-     * Объединить с другой коллекцией
+     * Merge with another collection
      */
     public function merge(PostIdCollection $other): self
     {

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Sc\Model;
 
 /**
- * Абстрактная модель поста с данными для синхронизации
+ * Abstract post model with data for synchronization
  */
 readonly class Post
 {
