@@ -209,8 +209,10 @@ The application includes automatic retry mechanisms with exponential backoff. Ch
 
 ## TODO
 * Add auto-tests and CI/CD pipeline
-* Increase VK post character limits
-* Add system abstraction (e.g., tg2tg sync)
+* VK: Increase post character limits
+* VK: To parse `[id2911722|Alex Ivanov]` in a more correct way
+* Add system abstraction (e.g., tg2tg sync) and more flexibility via configs
+* Support for gradual synchronization of the old channel with the newer one. Individual limits for retrievers coordinated with this.
 * Add Instagram support
 * Add Facebook support  
 * Add polls support for VK sender (see `\Sc\Channels\Vk\VkSender::supportsPolls`)
