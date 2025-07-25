@@ -22,9 +22,6 @@ readonly class VkSender implements SenderInterface
 
     // Limits for public pages (more liberal)
     private const int PUBLIC_MAX_POST_LENGTH = 4096;  // Significantly higher for public pages
-//    private const int PUBLIC_MAX_POST_LENGTH = 4623;  // Significantly higher for public pages
-
-    private const int CONTINUATION_OVERLAP = 100; // Overlap between parts
 
     public function __construct(
         private VKApiClient              $vk,
@@ -104,15 +101,37 @@ readonly class VkSender implements SenderInterface
             // First upload the photo
             $uploadedPhoto = $photoUrl ? $this->uploadPhoto($photoUrl) : [];
 
-            // Then create post with photo
-            $response = $this->vk->wall()->post($this->config->token, [
-                'from_group' => true,
-                'owner_id' => $this->config->groupId,
-                'message' => $formattedText,
-                'attachments' => $uploadedPhoto,
-            ]);
+            // Check text length and choose appropriate method
+            $textLength = mb_strlen($formattedText, 'UTF-8');
 
-            $newPostId = new PostId((string) $response['post_id'], $transferPost->otherSystemName);
+            if ($textLength < 1000) { // Safe length for URL parameters
+                // Use VK SDK for short texts
+                $response = $this->vk->wall()->post($this->config->token, [
+                    'from_group' => true,
+                    'owner_id' => $this->config->groupId,
+                    'message' => $formattedText,
+                    'attachments' => $uploadedPhoto,
+                ]);
+                $postId = $response['post_id'];
+            } else {
+                // Use cURL for long texts to avoid HTTP 414
+                $this->logger->info('Using cURL for long text photo post to avoid HTTP 414', [
+                    'text_length' => $textLength,
+                    'post_id' => (string) $transferPost->post->ids
+                ]);
+
+                $response = $this->sendPostViaCurl([
+                    'access_token' => $this->config->token,
+                    'from_group' => true,
+                    'owner_id' => $this->config->groupId,
+                    'message' => $formattedText,
+                    'attachments' => $uploadedPhoto,
+                    'v' => '5.131', // VK API version
+                ]);
+                $postId = $response['post_id'];
+            }
+
+            $newPostId = new PostId((string) $postId, $transferPost->otherSystemName);
             $transferPost->post->ids->add($newPostId);
             $this->successHook->handleSuccessfulSend($transferPost, $formattedText);
 
@@ -120,7 +139,7 @@ readonly class VkSender implements SenderInterface
             $this->handleSendError(
                 $transferPost->post->ids,
                 $e,
-                ['photo' => $photoUrl, 'message' => $formattedText]
+                ['photo' => $photoUrl, 'message' => $formattedText, 'text_length' => mb_strlen($formattedText, 'UTF-8')]
             );
             // Don't rethrow - let synchronization continue
         }
@@ -141,24 +160,92 @@ readonly class VkSender implements SenderInterface
     private function sendAsWallPost(TransferPostDto $transferPost, string $formattedText): void
     {
         try {
-            $response = $this->vk->wall()->post($this->config->token, [
-                'from_group' => true,
-                'owner_id' => $this->config->groupId,
-                'message' => $formattedText,
-            ]);
+            // Try VK SDK first for short texts
+            $textLength = mb_strlen($formattedText, 'UTF-8');
+
+            if ($textLength < 1000) { // Safe length for URL parameters
+                $response = $this->vk->wall()->post($this->config->token, [
+                    'from_group' => true,
+                    'owner_id' => $this->config->groupId,
+                    'message' => $formattedText,
+                ]);
+                $postId = $response['post_id'];
+            } else {
+                // Use cURL for long texts to avoid HTTP 414
+                $this->logger->info('Using cURL for long text post to avoid HTTP 414', [
+                    'text_length' => $textLength,
+                    'post_id' => (string) $transferPost->post->ids
+                ]);
+
+                $response = $this->sendPostViaCurl([
+                    'access_token' => $this->config->token,
+                    'from_group' => true,
+                    'owner_id' => $this->config->groupId,
+                    'message' => $formattedText,
+                    'v' => '5.131', // VK API version
+                ]);
+                $postId = $response['post_id'];
+            }
 
             $transferPost->post->ids->add(
-                new PostId((string) $response['post_id'], $transferPost->otherSystemName)
+                new PostId((string) $postId, $transferPost->otherSystemName)
             );
             $this->successHook->handleSuccessfulSend($transferPost, $formattedText);
 
         } catch (\Throwable $e) {
             $this->handleSendError($transferPost->post->ids, $e, [
                 'text' => $formattedText,
-                'method' => 'wall_post'
+                'method' => 'wall_post',
+                'text_length' => mb_strlen($formattedText, 'UTF-8')
             ]);
             // Don't rethrow - let synchronization continue
         }
+    }
+
+    /**
+     * Sends post using direct cURL with POST body to avoid HTTP 414 errors
+     */
+    private function sendPostViaCurl(array $params): array
+    {
+        $url = 'https://api.vk.com/method/wall.post';
+
+        $curl = curl_init();
+        curl_setopt_array($curl, [
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => http_build_query($params), // POST body instead of URL
+            CURLOPT_TIMEOUT => $this->config->requestTimeoutSec,
+            CURLOPT_HTTPHEADER => [
+                'Content-Type: application/x-www-form-urlencoded',
+                'User-Agent: VK_BOT_POSTER/1.0',
+            ],
+            CURLOPT_SSL_VERIFYPEER => true,
+        ]);
+
+        $response = curl_exec($curl);
+        $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        $error = curl_error($curl);
+        curl_close($curl);
+
+        if ($httpCode !== 200 || $response === false) {
+            throw new \RuntimeException("VK API request failed: HTTP $httpCode, Error: $error");
+        }
+
+        $decoded = json_decode($response, true);
+        if (!$decoded) {
+            throw new \RuntimeException("Invalid JSON response from VK API: " . substr($response, 0, 200));
+        }
+
+        if (isset($decoded['error'])) {
+            throw new \RuntimeException("VK API error: " . $decoded['error']['error_msg'] ?? 'Unknown error');
+        }
+
+        if (!isset($decoded['response'])) {
+            throw new \RuntimeException("Missing response from VK API: " . json_encode($decoded));
+        }
+
+        return $decoded['response'];
     }
 
     private function uploadPhoto(string $photoUrl): string
@@ -292,7 +379,9 @@ readonly class VkSender implements SenderInterface
      */
     private function getMaxPostLength(?Post $post = null): int
     {
-        return $this->isPublicPage() ? self::PUBLIC_MAX_POST_LENGTH : self::GROUP_MAX_POST_LENGTH;
+        return self::PUBLIC_MAX_POST_LENGTH;
+
+        // return $this->isPublicPage() ? self::PUBLIC_MAX_POST_LENGTH : self::GROUP_MAX_POST_LENGTH;
     }
 
     private function handleSendError(PostIdCollection $collection, \Throwable $e, array $context = []): void
