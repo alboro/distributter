@@ -169,17 +169,28 @@ readonly class TelegramRetriever implements RetrieverInterface
         try {
             $this->logger->debug('Updating MadelineProto peer database');
 
-            // Get dialogs list to update peer database
+            // Get dialogs list to update peer database (with hash parameter like in test-channel-access.php)
             $dialogs = $this->madelineProto->messages->getDialogs([
                 'offset_date' => 0,
                 'offset_id' => 0,
                 'offset_peer' => ['_' => 'inputPeerEmpty'],
                 'limit' => 100,
+                'hash' => [0]  // Added missing hash parameter
             ]);
 
             $this->logger->debug('Peer database updated', [
                 'dialogs_count' => count($dialogs['dialogs'] ?? [])
             ]);
+
+            // Also try to get self info for database update (like in test-channel-access.php)
+            try {
+                $self = $this->madelineProto->getSelf();
+                $this->logger->debug('Self info retrieved', [
+                    'name' => $self['first_name'] ?? 'Unknown'
+                ]);
+            } catch (\Throwable $e) {
+                $this->logger->debug('Could not get self info: ' . $e->getMessage());
+            }
 
             // Check if our channel is in the dialogs list
             $channelId = $this->config->tgRetrieverChannel;
@@ -199,6 +210,18 @@ readonly class TelegramRetriever implements RetrieverInterface
                 'channel_id' => $channelId,
                 'chats_count' => count($dialogs['chats'] ?? [])
             ]);
+
+            // Try to get channel info using getInfo() method (like in test-channel-access.php)
+            try {
+                $channelInfo = $this->madelineProto->getInfo($channelId);
+                $this->logger->info('Channel accessible via getInfo', [
+                    'type' => $channelInfo['type'] ?? 'unknown',
+                    'id' => $channelInfo['bot_api_id'] ?? 'unknown'
+                ]);
+                return true;
+            } catch (\Throwable $e) {
+                $this->logger->debug('getInfo failed: ' . $e->getMessage());
+            }
 
             return true;
 
