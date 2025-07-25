@@ -216,7 +216,7 @@ The application includes automatic retry mechanisms with exponential backoff. Ch
 * Add Instagram support
 * Add Facebook support  
 * Add polls support for VK sender (see `\Sc\Channels\Vk\VkSender::supportsPolls`)
-* Group retrieved posts from Telegram (see `src/Sc/Channels/Tg/TelegramRetriever.php:16`)
+* Group retrieved posts from Telegram (see `src/Sc/Channels/Tg/TelegramRetriever.php:16`), use also tags or time as group criteria
 * Move post list synchronization to separate processes for better stability
 
 ## License

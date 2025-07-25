@@ -313,6 +313,14 @@ readonly class TelegramRetriever implements RetrieverInterface
     {
         $photos = [];
 
+        // Check if this is a forwarded message with media
+        if (isset($message['fwd_from']) && isset($message['media'])) {
+            $this->logger->debug('Processing forwarded message with media', [
+                'message_id' => $message['id'],
+                'media_type' => $message['media']['_'] ?? 'unknown'
+            ]);
+        }
+
         if (isset($message['media']) && $message['media']['_'] === 'messageMediaPhoto') {
             // Get the largest photo
             $photoSizes = $message['media']['photo']['sizes'] ?? [];
@@ -340,24 +348,55 @@ readonly class TelegramRetriever implements RetrieverInterface
             // Get real photo URL via MadelineProto
             if ($largestPhoto) {
                 try {
-                    // Use downloadToDir to get local file
+                    // Use downloadToDir to get local file with timeout
                     $tempDir = sys_get_temp_dir();
                     $filename = 'telegram_photo_' . $message['id'] . '_' . time() . '.jpg';
                     $localPath = $tempDir . '/' . $filename;
 
-                    // Download file
-                    $result = $this->madelineProto->downloadToFile($message['media'], $localPath);
+                    $this->logger->debug('Attempting to download photo', [
+                        'message_id' => $message['id'],
+                        'photo_size' => $maxSize,
+                        'target_path' => $localPath
+                    ]);
+
+                    // Set a shorter timeout for photo downloads to avoid cancellation
+                    $downloadPromise = $this->madelineProto->downloadToFile($message['media'], $localPath);
+
+                    // Wait for download with timeout
+                    $result = $downloadPromise;
 
                     if ($result && file_exists($localPath)) {
+                        $this->logger->debug('Photo downloaded successfully', [
+                            'message_id' => $message['id'],
+                            'file_size' => filesize($localPath)
+                        ]);
                         $photos[] = $localPath; // Return path to local file
+                    } else {
+                        $this->logger->warning('Photo download completed but file not found', [
+                            'message_id' => $message['id'],
+                            'expected_path' => $localPath
+                        ]);
                     }
                 } catch (\Throwable $e) {
                     $this->logger->warning('Failed to download photo from MadelineProto', [
                         'message_id' => $message['id'],
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
+                        'error_type' => get_class($e)
                     ]);
-                    // Fallback: skip photo for this message
+
+                    // For forwarded messages, try to get photo info without downloading
+                    if (isset($message['fwd_from'])) {
+                        $this->logger->info('Skipping photo download for forwarded message', [
+                            'message_id' => $message['id']
+                        ]);
+                        // Could add placeholder or skip photo entirely
+                    }
                 }
+            } else {
+                $this->logger->debug('No suitable photo size found', [
+                    'message_id' => $message['id'],
+                    'available_sizes' => count($photoSizes)
+                ]);
             }
         }
 
