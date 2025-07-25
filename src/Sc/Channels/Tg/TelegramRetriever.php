@@ -10,20 +10,25 @@ use Sc\Channels\RetrieverInterface;
 use Sc\Config\AppConfig;
 use Sc\Model\{Post, PostId, PostIdCollection};
 use Sc\Service\Repository;
+use Sc\Service\MadelineProtoFixer;
 
 /**
- * Извлекает и обрабатывает посты из Telegram через MadelineProto API
+ * Extracts and processes posts from Telegram via MadelineProto API
  * @todo: every got Sc\Model\Post must not know anything about by what count of separated ids it is stored in.
  */
 readonly class TelegramRetriever implements RetrieverInterface
 {
+    private MadelineProtoFixer $fixer;
+
     public function __construct(
         private API $madelineProto,
         private AppConfig $config,
         private LoggerInterface $logger,
         private Repository $storage,
         private string $systemName,
-    ) {}
+    ) {
+        $this->fixer = new MadelineProtoFixer($this->logger, dirname($config->tgRetrieverSessionFile));
+    }
 
     public function systemName(): string
     {
@@ -36,7 +41,7 @@ readonly class TelegramRetriever implements RetrieverInterface
     }
 
     /**
-     * Получает посты из Telegram
+     * Gets posts from Telegram
      *
      * @return Post[]
      */
@@ -62,30 +67,62 @@ readonly class TelegramRetriever implements RetrieverInterface
     private function fetchTelegramMessages(): array
     {
         try {
-            // Сначала пытаемся получить сообщения напрямую
-            $response = $this->madelineProto->messages->getHistory([
-                'peer' => $this->config->tgRetrieverChannel,
-                'limit' => $this->config->itemCount,
-            ]);
+            // First try to get messages directly
+            $response = $this->getHistory();
 
             return $response['messages'] ?? [];
 
         } catch (\Throwable $e) {
+            // Check if this is a MadelineProto IPC error
+            if (MadelineProtoFixer::isMadelineProtoIpcException($e)) {
+                $this->logger->warning('Detected MadelineProto IPC issue, attempting automatic fix', [
+                    'error' => $e->getMessage()
+                ]);
+
+                // Try to automatically fix the issue
+                if ($this->fixer->fixIssues()) {
+                    $this->logger->info('MadelineProto issues fixed, retrying operation');
+
+                    // Give some time for restart after fix
+                    sleep(3);
+
+                    try {
+                        // Retry after fix
+                        $response = $this->getHistory();
+
+                        $this->logger->info('Successfully retrieved messages after fixing MadelineProto issues');
+                        return $response['messages'] ?? [];
+
+                    } catch (\Throwable $retryError) {
+                        $this->logger->error('Still failing after MadelineProto fix attempt', [
+                            'original_error' => $e->getMessage(),
+                            'retry_error' => $retryError->getMessage()
+                        ]);
+
+                        // If this is still a peer issue, handle as usual
+                        return $this->handlePeerDatabaseException($retryError);
+                    }
+                } else {
+                    $this->logger->error('Failed to automatically fix MadelineProto issues');
+                }
+            }
+
+            // Handle other errors (including peer issues)
             return $this->handlePeerDatabaseException($e);
         }
     }
 
     /**
-     * Обрабатывает исключения связанные с базой данных пиров
+     * Handles exceptions related to peer database
      */
     private function handlePeerDatabaseException(\Throwable $e): array
     {
         if (strpos($e->getMessage(), 'This peer is not present in the internal peer database') !== false) {
-            $this->logger->warning('Канал не найден в базе пиров, пытаемся обновить базу данных пиров');
+            $this->logger->warning('Channel not found in peer database, trying to update peer database');
 
-            // Пытаемся обновить базу данных пиров
+            // Try to update peer database
             if ($this->updatePeerDatabase()) {
-                // Повторная попытка после обновления базы пиров
+                // Retry after updating peer database
                 try {
                     $response = $this->madelineProto->messages->getHistory([
                         'peer' => $this->config->tgRetrieverChannel,
@@ -95,36 +132,44 @@ readonly class TelegramRetriever implements RetrieverInterface
                     return $response['messages'] ?? [];
 
                 } catch (\Throwable $retryError) {
-                    $this->logger->error('Канал недоступен даже после обновления базы пиров', [
+                    $this->logger->error('Channel unavailable even after updating peer database', [
                         'channel' => $this->config->tgRetrieverChannel,
                         'error' => $retryError->getMessage()
                     ]);
                 }
             }
 
-            $this->logger->error('Канал недоступен', [
+            $this->logger->error('Channel unavailable', [
                 'channel' => $this->config->tgRetrieverChannel,
-                'reason' => 'Канал не найден в базе данных пиров MadelineProto',
-                'solution' => 'Добавьте аккаунт в приватный канал как участника'
+                'reason' => 'Channel not found in MadelineProto peer database',
+                'solution' => 'Add account to private channel as participant'
             ]);
         }
 
         throw new \Exception(
-            "Канал '{$this->config->tgRetrieverChannel}' недоступен. " .
-            "Для доступа к приватному каналу аккаунт должен быть его участником. " .
-            "Добавьте аккаунт в канал или используйте публичный username канала."
+            "Channel '{$this->config->tgRetrieverChannel}' is unavailable. " .
+            "To access a private channel, the account must be its participant. " .
+            "Add the account to the channel or use the public username of the channel."
         );
     }
 
+    private function getHistory(): array
+    {
+        return $this->madelineProto->messages->getHistory([
+            'peer' => $this->config->tgRetrieverChannel,
+            'limit' => $this->config->itemCount,
+        ]);
+    }
+
     /**
-     * Обновляет базу данных пиров MadelineProto
+     * Updates MadelineProto peer database
      */
     private function updatePeerDatabase(): bool
     {
         try {
-            $this->logger->debug('Обновляем базу данных пиров MadelineProto');
+            $this->logger->debug('Updating MadelineProto peer database');
 
-            // Получаем список диалогов для обновления базы пиров
+            // Get dialogs list to update peer database
             $dialogs = $this->madelineProto->messages->getDialogs([
                 'offset_date' => 0,
                 'offset_id' => 0,
@@ -132,17 +177,17 @@ readonly class TelegramRetriever implements RetrieverInterface
                 'limit' => 100,
             ]);
 
-            $this->logger->debug('База пиров обновлена', [
+            $this->logger->debug('Peer database updated', [
                 'dialogs_count' => count($dialogs['dialogs'] ?? [])
             ]);
 
-            // Проверяем, есть ли наш канал в списке диалогов
+            // Check if our channel is in the dialogs list
             $channelId = $this->config->tgRetrieverChannel;
             $numericChannelId = str_replace('-100', '', $channelId);
 
             foreach ($dialogs['chats'] ?? [] as $chat) {
                 if ($chat['id'] == $numericChannelId) {
-                    $this->logger->info('Канал найден в списке диалогов', [
+                    $this->logger->info('Channel found in dialogs list', [
                         'channel_id' => $channelId,
                         'title' => $chat['title'] ?? 'Unknown'
                     ]);
@@ -150,7 +195,7 @@ readonly class TelegramRetriever implements RetrieverInterface
                 }
             }
 
-            $this->logger->debug('Канал не найден в диалогах', [
+            $this->logger->debug('Channel not found in dialogs', [
                 'channel_id' => $channelId,
                 'chats_count' => count($dialogs['chats'] ?? [])
             ]);
@@ -158,7 +203,7 @@ readonly class TelegramRetriever implements RetrieverInterface
             return true;
 
         } catch (\Throwable $e) {
-            $this->logger->error('Ошибка обновления базы данных пиров', [
+            $this->logger->error('Error updating peer database', [
                 'error' => $e->getMessage()
             ]);
             return false;
@@ -172,7 +217,7 @@ readonly class TelegramRetriever implements RetrieverInterface
     {
         $posts = [];
 
-        // Обрабатываем сообщения в обратном порядке (от старых к новым)
+        // Process messages in reverse order (from old to new)
         foreach (array_reverse($messages) as $message) {
             try {
                 if ($post = $this->convertTelegramMessageToPost($message)) {
@@ -187,8 +232,8 @@ readonly class TelegramRetriever implements RetrieverInterface
             }
         }
 
-        // todo: $posts теперь содержат посты, но особенность телеги такова, что логически одна публикация пост может быть опубликован через несколько постов:
-        //  поэтому нужно объединить посты, у которых $post->ids->getSystems() отличные от $this->systemName() и у которых хоть одна такая отличная systemName равна systemName из другого поста в массиве $posts
+        // todo: $posts now contain posts, but Telegram's peculiarity is that logically one publication post can be published through several posts:
+        //  therefore need to combine posts where $post->ids->getSystems() are different from $this->systemName() and where at least one such different systemName equals systemName from another post in the $posts array
 
         return $posts;
     }
@@ -198,17 +243,17 @@ readonly class TelegramRetriever implements RetrieverInterface
         $messageId = (string) $message['id'];
         $text = $message['message'] ?? '';
 
-        // Парсим медиа вложения
+        // Parse media attachments
         $photos = $this->parsePhotos($message);
         $videos = $this->parseVideos($message);
         $links = $this->parseLinks($text);
 
-        // Пропускаем сообщения без контента (ни текста, ни медиа)
+        // Skip messages without content (neither text nor media)
         if (empty($text) && empty($photos) && empty($videos)) {
             return null;
         }
 
-        // Пропускаем сообщения с игнор-тегом (только если есть текст для проверки)
+        // Skip messages with ignore tag (only if there's text to check)
         if (!empty($text) && $this->hasIgnoreTag($text)) {
             $this->logger->debug('Skip message with ignore tag', ['message_id' => $message['id']]);
             return null;
@@ -223,7 +268,7 @@ readonly class TelegramRetriever implements RetrieverInterface
             videos: $videos,
             links: $links,
             photos: $photos,
-            author: null, // Telegram не предоставляет информацию об авторе в каналах
+            author: null, // Telegram doesn't provide author info in channels
         );
     }
 
@@ -246,49 +291,49 @@ readonly class TelegramRetriever implements RetrieverInterface
         $photos = [];
 
         if (isset($message['media']) && $message['media']['_'] === 'messageMediaPhoto') {
-            // Получаем наибольшее фото
+            // Get the largest photo
             $photoSizes = $message['media']['photo']['sizes'] ?? [];
             $largestPhoto = null;
             $maxSize = 0;
 
             foreach ($photoSizes as $size) {
-                // Ищем размер с максимальным разрешением
+                // Look for size with maximum resolution
                 if (isset($size['w'], $size['h']) && ($size['w'] * $size['h']) > $maxSize) {
                     $largestPhoto = $size;
                     $maxSize = $size['w'] * $size['h'];
                 }
             }
 
-            // Если не нашли размер с w/h, берем любой не stripped размер
+            // If no size with w/h found, take any non-stripped size
             if (!$largestPhoto) {
                 foreach ($photoSizes as $size) {
-                    if (isset($size['type']) && $size['type'] !== 'i') { // 'i' - это stripped size
+                    if (isset($size['type']) && $size['type'] !== 'i') { // 'i' is stripped size
                         $largestPhoto = $size;
                         break;
                     }
                 }
             }
 
-            // Получаем реальный URL фото через MadelineProto
+            // Get real photo URL via MadelineProto
             if ($largestPhoto) {
                 try {
-                    // Используем downloadToDir для получения локального файла
+                    // Use downloadToDir to get local file
                     $tempDir = sys_get_temp_dir();
                     $filename = 'telegram_photo_' . $message['id'] . '_' . time() . '.jpg';
                     $localPath = $tempDir . '/' . $filename;
 
-                    // Скачиваем файл
+                    // Download file
                     $result = $this->madelineProto->downloadToFile($message['media'], $localPath);
 
                     if ($result && file_exists($localPath)) {
-                        $photos[] = $localPath; // Возвращаем путь к локальному файлу
+                        $photos[] = $localPath; // Return path to local file
                     }
                 } catch (\Throwable $e) {
                     $this->logger->warning('Failed to download photo from MadelineProto', [
                         'message_id' => $message['id'],
                         'error' => $e->getMessage()
                     ]);
-                    // Fallback: пропускаем фото для этого сообщения
+                    // Fallback: skip photo for this message
                 }
             }
         }
@@ -304,7 +349,7 @@ readonly class TelegramRetriever implements RetrieverInterface
         $videos = [];
 
         if (isset($message['media']) && in_array($message['media']['_'], ['messageMediaDocument', 'messageMediaVideo'])) {
-            // В реальной реализации здесь нужно получить URL видео через MadelineProto
+            // In real implementation here we need to get video URL via MadelineProto
             $videos[] = 'telegram_video_' . $message['id'];
         }
 
@@ -318,7 +363,7 @@ readonly class TelegramRetriever implements RetrieverInterface
     {
         $links = [];
 
-        // Простой парсинг URL из текста
+        // Simple URL parsing from text
         if (preg_match_all('/(https?:\/\/[^\s]+)/i', $text, $matches)) {
             $links = $matches[1];
         }
