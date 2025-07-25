@@ -208,6 +208,7 @@ The application includes automatic retry mechanisms with exponential backoff. Ch
 4. Register new services in `Synchronizer`
 
 ## TODO
+* add special tags which define if to remove links or transform them into just text (tg supports html, vk - no)
 * Add auto-tests and CI/CD pipeline
 * VK: Increase post character limits
 * VK: To parse `[id2911722|Alex Ivanov]` in a more correct way, transform internal feed links into links of appropriate channel
