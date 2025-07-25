@@ -12,7 +12,7 @@ error_reporting(-1);
 set_time_limit(300); // 5 minutes maximum
 ignore_user_abort(false);
 
-/*// Check for already running process
+// Check for already running process
 $lockFile = __DIR__ . '/sync.lock';
 if (file_exists($lockFile)) {
     $lockData = json_decode(file_get_contents($lockFile), true, 512, JSON_THROW_ON_ERROR);
@@ -46,7 +46,7 @@ register_shutdown_function(static function() use ($lockFile) {
     if (file_exists($lockFile)) {
         unlink($lockFile);
     }
-});*/
+});
 
 $dotenv = Dotenv::createUnsafeImmutable(__DIR__);
 $dotenv->safeLoad();
