@@ -11,5 +11,8 @@ which composer      >/dev/null || Fail "composer not found"
 
 cd "$(realpath "$(dirname "$0")"/..)"
 
+echo "Installing production dependencies..."
 composer install --prefer-dist --no-interaction --no-dev --optimize-autoloader
 composer dump-autoload --optimize --no-dev --classmap-authoritative
+
+echo "Build completed successfully!"

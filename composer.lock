@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "9eebaecc2117f0cf224a1fe04208cbb1",
+    "content-hash": "79f643abd0bebb142ef3041c39272960",
     "packages": [
         {
             "name": "amphp/amp",
@@ -2006,16 +2006,16 @@
         },
         {
             "name": "danog/async-orm",
-            "version": "1.1.3",
+            "version": "1.1.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/danog/AsyncOrm.git",
-                "reference": "77b2ef792b805db9a59fed1da515fd55f0ba75f5"
+                "reference": "495f335d8ddb9dae8b773025911191f31c45e9ea"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/danog/AsyncOrm/zipball/77b2ef792b805db9a59fed1da515fd55f0ba75f5",
-                "reference": "77b2ef792b805db9a59fed1da515fd55f0ba75f5",
+                "url": "https://api.github.com/repos/danog/AsyncOrm/zipball/495f335d8ddb9dae8b773025911191f31c45e9ea",
+                "reference": "495f335d8ddb9dae8b773025911191f31c45e9ea",
                 "shasum": ""
             },
             "require": {
@@ -2059,7 +2059,7 @@
             "description": "Async ORM based on AMPHP v3 and fibers.",
             "support": {
                 "issues": "https://github.com/danog/AsyncOrm/issues",
-                "source": "https://github.com/danog/AsyncOrm/tree/1.1.3"
+                "source": "https://github.com/danog/AsyncOrm/tree/1.1.4"
             },
             "funding": [
                 {
@@ -2067,7 +2067,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-05-18T16:18:44+00:00"
+            "time": "2025-07-12T18:39:01+00:00"
         },
         {
             "name": "danog/better-prometheus",
@@ -2402,16 +2402,16 @@
         },
         {
             "name": "danog/madelineproto",
-            "version": "8.4.18",
+            "version": "8.4.21",
             "source": {
                 "type": "git",
                 "url": "https://github.com/danog/MadelineProto.git",
-                "reference": "6401b43abff22e5f8acfda13dd0e81e05677e00d"
+                "reference": "b329fccd95e6795cbabe18496005c2e9e324dfdb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/danog/MadelineProto/zipball/6401b43abff22e5f8acfda13dd0e81e05677e00d",
-                "reference": "6401b43abff22e5f8acfda13dd0e81e05677e00d",
+                "url": "https://api.github.com/repos/danog/MadelineProto/zipball/b329fccd95e6795cbabe18496005c2e9e324dfdb",
+                "reference": "b329fccd95e6795cbabe18496005c2e9e324dfdb",
                 "shasum": ""
             },
             "require": {
@@ -2430,7 +2430,7 @@
                 "amphp/socket": "^2.3.1",
                 "amphp/websocket-client": "^2.0.1",
                 "bacon/bacon-qr-code": "^3.0.1",
-                "danog/async-orm": "^1.1.3",
+                "danog/async-orm": "^1.1.4",
                 "danog/better-prometheus": "^0.1.1",
                 "danog/dns-over-https": "^1.0.1",
                 "danog/ipc": "^1.0.1",
@@ -2449,7 +2449,7 @@
                 "league/uri": "^7.5.1",
                 "nikic/php-parser": "^5.5.0",
                 "php-64bit": ">=8.2",
-                "phpseclib/phpseclib": "^3.0.44",
+                "phpseclib/phpseclib": "^3.0.46",
                 "psr/http-factory": "^1.1.0",
                 "psr/log": "^3.0.2",
                 "revolt/event-loop": "^1.0.7",
@@ -2470,7 +2470,7 @@
                 "ext-ctype": "*",
                 "phpunit/phpunit": "^9.6.23",
                 "revolt/event-loop-adapter-react": "^1.1.1",
-                "symfony/yaml": "^6.4.21",
+                "symfony/yaml": "^6.4.23",
                 "vimeo/psalm": "dev-master"
             },
             "suggest": {
@@ -2519,7 +2519,7 @@
             ],
             "support": {
                 "issues": "https://github.com/danog/MadelineProto/issues",
-                "source": "https://github.com/danog/MadelineProto/tree/8.4.18"
+                "source": "https://github.com/danog/MadelineProto/tree/8.4.21"
             },
             "funding": [
                 {
@@ -2527,7 +2527,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-06-28T18:00:36+00:00"
+            "time": "2025-07-25T15:11:23+00:00"
         },
         {
             "name": "danog/primemodule",
@@ -3327,16 +3327,16 @@
         },
         {
             "name": "illuminate/collections",
-            "version": "v12.20.0",
+            "version": "v12.21.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/illuminate/collections.git",
-                "reference": "25cf57b8c994eb8193c2a8bdf6e9eb99d343a8b7"
+                "reference": "a048b4fbbef4742ff2eee843971bb8278239c610"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/illuminate/collections/zipball/25cf57b8c994eb8193c2a8bdf6e9eb99d343a8b7",
-                "reference": "25cf57b8c994eb8193c2a8bdf6e9eb99d343a8b7",
+                "url": "https://api.github.com/repos/illuminate/collections/zipball/a048b4fbbef4742ff2eee843971bb8278239c610",
+                "reference": "a048b4fbbef4742ff2eee843971bb8278239c610",
                 "shasum": ""
             },
             "require": {
@@ -3380,11 +3380,11 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2025-07-01T16:49:44+00:00"
+            "time": "2025-07-15T20:29:59+00:00"
         },
         {
             "name": "illuminate/conditionable",
-            "version": "v12.20.0",
+            "version": "v12.21.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/illuminate/conditionable.git",
@@ -3430,16 +3430,16 @@
         },
         {
             "name": "illuminate/contracts",
-            "version": "v12.20.0",
+            "version": "v12.21.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/illuminate/contracts.git",
-                "reference": "e0fe87237da006e7d26e1167b6241786d68923e8"
+                "reference": "c2eef857b808810f5cb187de58e23d25c1d443d9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/illuminate/contracts/zipball/e0fe87237da006e7d26e1167b6241786d68923e8",
-                "reference": "e0fe87237da006e7d26e1167b6241786d68923e8",
+                "url": "https://api.github.com/repos/illuminate/contracts/zipball/c2eef857b808810f5cb187de58e23d25c1d443d9",
+                "reference": "c2eef857b808810f5cb187de58e23d25c1d443d9",
                 "shasum": ""
             },
             "require": {
@@ -3474,11 +3474,11 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2025-07-01T15:59:53+00:00"
+            "time": "2025-07-16T13:18:38+00:00"
         },
         {
             "name": "illuminate/macroable",
-            "version": "v12.20.0",
+            "version": "v12.21.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/illuminate/macroable.git",
@@ -3524,16 +3524,16 @@
         },
         {
             "name": "illuminate/support",
-            "version": "v12.20.0",
+            "version": "v12.21.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/illuminate/support.git",
-                "reference": "d538550b5136b1ecb8be9aa73a9044a9e4971546"
+                "reference": "212103694b407b41dce5aae4fe41fbe6ee1bec49"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/illuminate/support/zipball/d538550b5136b1ecb8be9aa73a9044a9e4971546",
-                "reference": "d538550b5136b1ecb8be9aa73a9044a9e4971546",
+                "url": "https://api.github.com/repos/illuminate/support/zipball/212103694b407b41dce5aae4fe41fbe6ee1bec49",
+                "reference": "212103694b407b41dce5aae4fe41fbe6ee1bec49",
                 "shasum": ""
             },
             "require": {
@@ -3597,7 +3597,7 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2025-07-08T13:53:21+00:00"
+            "time": "2025-07-22T13:57:22+00:00"
         },
         {
             "name": "irazasyed/telegram-bot-sdk",
@@ -4054,112 +4054,6 @@
                 }
             ],
             "time": "2024-12-08T08:18:47+00:00"
-        },
-        {
-            "name": "longman/telegram-bot",
-            "version": "0.83.1",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/php-telegram-bot/core.git",
-                "reference": "ca9eeb1c9e51c39a33070efeba01aac105ed9aa7"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/php-telegram-bot/core/zipball/ca9eeb1c9e51c39a33070efeba01aac105ed9aa7",
-                "reference": "ca9eeb1c9e51c39a33070efeba01aac105ed9aa7",
-                "shasum": ""
-            },
-            "require": {
-                "ext-curl": "*",
-                "ext-json": "*",
-                "ext-mbstring": "*",
-                "ext-pdo": "*",
-                "guzzlehttp/guzzle": "^6.0|^7.0",
-                "php": "^8.1",
-                "psr/log": "^1.1|^2.0|^3.0"
-            },
-            "require-dev": {
-                "dms/phpunit-arraysubset-asserts": "^0.2",
-                "monolog/monolog": "^2.1",
-                "phpunit/phpunit": "^9.5",
-                "squizlabs/php_codesniffer": "^3.6"
-            },
-            "type": "library",
-            "extra": {
-                "branch-alias": {
-                    "dev-develop": "0.83.x-dev"
-                }
-            },
-            "autoload": {
-                "psr-4": {
-                    "Longman\\TelegramBot\\": "src"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Avtandil Kikabidze aka LONGMAN",
-                    "email": "akalongman@gmail.com",
-                    "homepage": "http://longman.me",
-                    "role": "Developer"
-                },
-                {
-                    "name": "Armando Lüscher",
-                    "email": "armando@noplanman.ch",
-                    "homepage": "https://noplanman.ch",
-                    "role": "Developer"
-                },
-                {
-                    "name": "PHP Telegram Bot Team",
-                    "homepage": "https://github.com/php-telegram-bot/core/graphs/contributors",
-                    "role": "Developer"
-                }
-            ],
-            "description": "PHP Telegram bot",
-            "homepage": "https://github.com/php-telegram-bot/core",
-            "keywords": [
-                "api",
-                "bot",
-                "telegram"
-            ],
-            "support": {
-                "issues": "https://github.com/php-telegram-bot/core/issues",
-                "source": "https://github.com/php-telegram-bot/core"
-            },
-            "funding": [
-                {
-                    "url": "https://github.com/php-telegram-bot/core#donate",
-                    "type": "custom"
-                },
-                {
-                    "url": "https://github.com/noplanman",
-                    "type": "github"
-                },
-                {
-                    "url": "https://ko-fi.com/phptelegrambot",
-                    "type": "ko_fi"
-                },
-                {
-                    "url": "https://liberapay.com/PHP-Telegram-Bot",
-                    "type": "liberapay"
-                },
-                {
-                    "url": "https://opencollective.com/php-telegram-bot",
-                    "type": "open_collective"
-                },
-                {
-                    "url": "https://www.patreon.com/phptelegrambot",
-                    "type": "patreon"
-                },
-                {
-                    "url": "https://tidelift.com/funding/github/packagist/longman/telegram-bot",
-                    "type": "tidelift"
-                }
-            ],
-            "time": "2024-05-30T21:05:25+00:00"
         },
         {
             "name": "monolog/monolog",
@@ -7331,8 +7225,11 @@
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
+        "php": ">=8.1",
         "ext-json": "*",
-        "ext-curl": "*"
+        "ext-curl": "*",
+        "ext-posix": "*",
+        "ext-pcntl": "*"
     },
     "platform-dev": {},
     "plugin-api-version": "2.6.0"
