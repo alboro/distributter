@@ -5,6 +5,7 @@
 /bin/session.madeline/*
 /bin/MadelineProto.log
 /bin/squash-history.sh
+/bin/sync.lock
 MadelineProto.log
 log.log
 deploy.conf

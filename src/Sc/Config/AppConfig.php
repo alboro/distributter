@@ -27,6 +27,10 @@ readonly class AppConfig
         public string  $tgRetrieverApiHash = '',
         public string  $tgRetrieverChannel = '',
         public string  $tgRetrieverSessionFile = 'session.madeline',
+        // tg retrieval settings
+        public int     $tgRetrievalTimeoutSec = 30,
+        public int     $tgRetrievalMaxRetries = 3,
+        public int     $tgRetrievalRetryDelay = 2,
         // fb
         public string  $fbPageAccessToken = '',
         public string  $fbPageId = '',
@@ -54,6 +58,11 @@ readonly class AppConfig
             tgRetrieverApiHash: $_ENV['TG_API_HASH'] ?? '',
             tgRetrieverChannel: $_ENV['TG_RETRIEVER_CHANNEL_ID'] ?? '',
             tgRetrieverSessionFile: dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . ($_ENV['TG_SESSION_FILE'] ?? 'session.madeline'),
+
+            // tg retrieval settings
+            tgRetrievalTimeoutSec: (int)($_ENV['TG_RETRIEVAL_TIMEOUT_SEC'] ?? 30),
+            tgRetrievalMaxRetries: (int)($_ENV['TG_RETRIEVAL_MAX_RETRIES'] ?? 3),
+            tgRetrievalRetryDelay: (int)($_ENV['TG_RETRIEVAL_RETRY_DELAY'] ?? 2),
 
             fbPageAccessToken: $_ENV['FB_PAGE_ACCESS_TOKEN'] ?? '',
             fbPageId: $_ENV['FB_PAGE_ID'] ?? '',

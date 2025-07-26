@@ -17,11 +17,7 @@ use VK\Client\VKApiClient;
 
 readonly class VkSender implements SenderInterface
 {
-    // Limits for groups (more strict)
-    private const int GROUP_MAX_POST_LENGTH = 2000;
-
-    // Limits for public pages (more liberal)
-    private const int PUBLIC_MAX_POST_LENGTH = 4096;  // Significantly higher for public pages
+    private const int PUBLIC_MAX_POST_LENGTH = 16000;
 
     public function __construct(
         private VKApiClient              $vk,
@@ -51,7 +47,7 @@ readonly class VkSender implements SenderInterface
 
         // Use character count (mb_strlen) instead of byte count (strlen) for proper limit checking
         $textLength = mb_strlen($formattedText, 'UTF-8');
-        $maxLength = $this->getMaxPostLength($transferPost->post);
+        $maxLength = $this->getMaxPostLength();
 
         // Check text length limit
         if ($textLength > $maxLength) {
@@ -377,11 +373,9 @@ readonly class VkSender implements SenderInterface
     /**
      * Gets maximum post length depending on account type and content type
      */
-    private function getMaxPostLength(?Post $post = null): int
+    private function getMaxPostLength(): int
     {
         return self::PUBLIC_MAX_POST_LENGTH;
-
-        // return $this->isPublicPage() ? self::PUBLIC_MAX_POST_LENGTH : self::GROUP_MAX_POST_LENGTH;
     }
 
     private function handleSendError(PostIdCollection $collection, \Throwable $e, array $context = []): void

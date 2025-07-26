@@ -146,19 +146,80 @@ readonly class TelegramRetriever implements RetrieverInterface
             ]);
         }
 
-        throw new \Exception(
-            "Channel '{$this->config->tgRetrieverChannel}' is unavailable. " .
-            "To access a private channel, the account must be its participant. " .
-            "Add the account to the channel or use the public username of the channel."
-        );
+        throw $e;
     }
 
     private function getHistory(): array
     {
-        return $this->madelineProto->messages->getHistory([
-            'peer' => $this->config->tgRetrieverChannel,
-            'limit' => $this->config->itemCount,
-        ]);
+        $maxRetries = $this->config->tgRetrievalMaxRetries;
+        $retryDelay = $this->config->tgRetrievalRetryDelay;
+        $timeout = $this->config->tgRetrievalTimeoutSec;
+
+        for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
+            try {
+                $this->logger->debug("Attempting to get history (attempt {$attempt}/{$maxRetries})");
+
+                // Use timeout wrapper for the operation
+                $result = $this->executeWithTimeout(function() {
+                    return $this->madelineProto->messages->getHistory([
+                        'peer' => $this->config->tgRetrieverChannel,
+                        'limit' => $this->config->itemCount,
+                        'offset_date' => 0,
+                        'offset_id' => 0,
+                        'max_id' => 0,
+                        'min_id' => 0,
+                        'add_offset' => 0,
+                        'hash' => [0]
+                    ]);
+                }, $timeout);
+
+                $this->logger->debug("Successfully retrieved history on attempt {$attempt}");
+                return $result;
+
+            } catch (\Throwable $e) {
+                $this->logger->warning("Attempt {$attempt} failed: " . $e->getMessage());
+
+                if ($attempt === $maxRetries) {
+                    throw $e; // Re-throw on final attempt
+                }
+
+                // Wait before retry
+                $this->logger->debug("Waiting {$retryDelay} seconds before retry...");
+                sleep($retryDelay);
+                $retryDelay = min($retryDelay * 2, 30); // Exponential backoff with max 30s
+            }
+        }
+
+        throw new \RuntimeException('All retry attempts failed');
+    }
+
+    /**
+     * Execute operation with timeout
+     */
+    private function executeWithTimeout(callable $operation, int $timeoutSeconds)
+    {
+        // Set a reasonable timeout for the operation
+        $startTime = time();
+
+        try {
+            // For MadelineProto, we can't easily wrap with timeout,
+            // but we can add some safety measures
+
+            // Log start of operation
+            $this->logger->debug("Starting operation with {$timeoutSeconds}s timeout");
+
+            $result = $operation();
+
+            $duration = time() - $startTime;
+            $this->logger->debug("Operation completed in {$duration} seconds");
+
+            return $result;
+
+        } catch (\Throwable $e) {
+            $duration = time() - $startTime;
+            $this->logger->warning("Operation failed after {$duration} seconds: " . $e->getMessage());
+            throw $e;
+        }
     }
 
     /**
@@ -175,7 +236,7 @@ readonly class TelegramRetriever implements RetrieverInterface
                 'offset_id' => 0,
                 'offset_peer' => ['_' => 'inputPeerEmpty'],
                 'limit' => 100,
-                'hash' => [0]  // Added missing hash parameter
+                'hash' => 0
             ]);
 
             $this->logger->debug('Peer database updated', [

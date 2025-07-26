@@ -208,6 +208,7 @@ php bin/auth-telegram.php
 4. Register new services in `Synchronizer`
 
 ## TODO
+* Group retrieved posts from Telegram (see `src/Sc/Channels/Tg/TelegramRetriever.php:16`), use also tags or time as group criteria
 * add special tags which define if to remove links or transform them into just text (tg supports html, vk - no)
 * Add auto-tests and CI/CD pipeline
 * VK: Increase post character limits
@@ -217,7 +218,6 @@ php bin/auth-telegram.php
 * Add Instagram support
 * Add Facebook support  
 * Add polls support for VK sender (see `\Sc\Channels\Vk\VkSender::supportsPolls`)
-* Group retrieved posts from Telegram (see `src/Sc/Channels/Tg/TelegramRetriever.php:16`), use also tags or time as group criteria
 * Move post list synchronization to separate processes for better stability
 
 ## License
