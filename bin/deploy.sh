@@ -100,7 +100,7 @@ deploy_to_server() {
 
     log "INFO" "Step 4: Updating Composer dependencies"
     ssh -i "$SSH_KEY" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
-        "cd '$SERVER_PATH' && composer install --no-dev --optimize-autoloader --no-interaction"
+        "cd '$SERVER_PATH' && bin/build.sh"
 
     log "INFO" "Step 5: Checking syntax"
     ssh -i "$SSH_KEY" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \

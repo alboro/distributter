@@ -113,6 +113,17 @@ source deploy.conf && ./bin/deploy.sh force
 # Add to crontab: */5 * * * * cd /var/www/distributter && php bin/distributter.php
 ```
 
+### Docker
+```sh
+# Rebuild the image
+docker build -t distributter .
+
+# Run with a permanent job
+docker run -d --name distributter distributter
+
+# show logs
+docker logs -f distributter
+```
 ## Usage
 
 ### Manual Synchronization
@@ -123,11 +134,6 @@ php bin/distributter.php
 ### Telegram Authorization (First Time)
 ```sh
 php bin/auth-telegram.php
-```
-
-### Testing Channel Access
-```sh
-php bin/test-channel-access.php
 ```
 
 ## Deploy
@@ -163,23 +169,20 @@ tail -f MadelineProto.log
 ## Content Processing
 
 ### Supported Content Types
-- **Text Posts**: Full HTML formatting support
-- **Photos**: Single and multiple images
-- **Videos**: VK videos with external platform detection
-- **Links**: Automatic link extraction and formatting
-- **Polls**: VK → Telegram poll conversion (with limitations)
+- Single photo with text
+- Just texts
+- Polls
 
 ### Filtering Rules
 - Posts marked as ads are automatically skipped
 - Posts with specified ignore tags are filtered out
-- Reposts (shared content) are currently not supported
-- Posts from unauthorized users are blocked
-
-### Content Limitations
-- **VK Groups**: 2000 characters max
-- **VK Public Pages**: 4096 characters max  
-- **Telegram**: Automatic message splitting for long content
-- **Polls**: Max 10 options, 300 character question limit
+- **VK**:
+- - reposts are filtered out
+- - Posts from unauthorized users are blocked
+- - Post 4096 characters max  
+- **Telegram**:
+- - Automatic message splitting for long content
+- - Polls: max 10 options, 300 character question limit
 
 ## Troubleshooting
 
@@ -195,9 +198,6 @@ sudo pkill -f "distributter.php"
 rm -rf session.madeline/
 php bin/auth-telegram.php
 ```
-
-#### Rate Limiting
-The application includes automatic retry mechanisms with exponential backoff. Check logs for rate limit messages.
 
 ## Development
 
