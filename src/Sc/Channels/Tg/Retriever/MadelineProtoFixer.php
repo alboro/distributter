@@ -1,6 +1,6 @@
 <?php
 
-namespace Sc\Service;
+namespace Sc\Channels\Tg\Retriever;
 
 use Psr\Log\LoggerInterface;
 

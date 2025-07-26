@@ -11,12 +11,12 @@ use Monolog\Logger;
 use Psr\Log\LoggerInterface;
 use Sc\Channels\RetrieverInterface;
 use Sc\Channels\SenderInterface;
-use Sc\Channels\Tg\TelegramSender;
-use Sc\Channels\Tg\TelegramRetriever;
-use Sc\Channels\Vk\AuthorService;
-use Sc\Channels\Vk\VkAttachmentParser;
-use Sc\Channels\Vk\VkRetriever;
-use Sc\Channels\Vk\VkSender;
+use Sc\Channels\Tg\Retriever\TelegramRetriever;
+use Sc\Channels\Tg\Sender\TelegramSender;
+use Sc\Channels\Vk\Retriever\AuthorService;
+use Sc\Channels\Vk\Retriever\VkAttachmentParser;
+use Sc\Channels\Vk\Retriever\VkRetriever;
+use Sc\Channels\Vk\Sender\VkSender;
 use Sc\Config\AppConfig;
 use Sc\Dto\TransferPostDto;
 use Sc\Filter\{PostFilter, PostFilterException, SameSystemPostFilterException};
@@ -35,7 +35,6 @@ final readonly class Synchronizer
 
     /** @var SenderInterface[] */
     private array $senders;
-    private ?VKApiClient $vkclient;
 
     public function __construct(private AppConfig $config)
     {
@@ -66,7 +65,6 @@ final readonly class Synchronizer
     {
         $telegramSender = $this->tgSenderFactory();
         $telegramRetriever = $this->tgRetrieverFactory();
-        $this->vkclient = new VKApiClient();
         $vkRetriever = $this->vkRetrieverFactory();
         $vkSender = $this->vkSenderFactory();
 
@@ -150,8 +148,11 @@ final readonly class Synchronizer
 
     private function tgSenderFactory(): ?TelegramSender
     {
+        if (null === $this->config->tgSenderConfig) {
+            return null;
+        }
         // Initialize Telegram Bot using irazasyed/telegram-bot-sdk
-        $tgBot = new TelegramApi($this->config->tgSenderBotToken);
+        $tgBot = new TelegramApi($this->config->tgSenderConfig->botToken);
 
         // Create MessageSplitter for splitting long messages
         $messageSplitter = new MessageSplitter(4000); // Telegram limit with margin
@@ -159,8 +160,8 @@ final readonly class Synchronizer
         // Create alternative Telegram sender
         return new TelegramSender(
             tgBot: $tgBot,
-            channelId: $this->config->tgSenderChannelId,
-            enableNotification: $this->config->enableNotification,
+            channelId: $this->config->tgSenderConfig->channelId ?? '',
+            enableNotification: $this->config->tgSenderConfig->enableNotification,
             logger: $this->logger,
             successHook: new SuccessHook($this->logger, $this->storage),
             systemName: 'tg',
@@ -173,15 +174,16 @@ final readonly class Synchronizer
         if (null === $this->config->vkRetrieverConfig) {
             return null;
         }
+        $vkApiClient = new VKApiClient();
         $attachmentParser = new VkAttachmentParser($this->config->requestTimeoutSec);
 
         // Using token from VkRetrieverConfig or fallback to empty string
         $token = $this->config->vkRetrieverConfig?->token ?? '';
-        $authorService = new AuthorService($this->vkclient, $token, $this->logger);
+        $authorService = new AuthorService($vkApiClient, $token, $this->logger);
 
         // Creating VK retriever
         return new VkRetriever(
-            vk: $this->vkclient,
+            vk: $vkApiClient,
             config: $this->config->vkRetrieverConfig,
             logger: $this->logger,
             attachmentParser: $attachmentParser,
@@ -194,7 +196,7 @@ final readonly class Synchronizer
     private function vkSenderFactory(): ?VkSender
     {
         return null === $this->config->vkSenderConfig ? null : new VkSender(
-            vk: $this->vkclient,
+            vk: new VKApiClient(),
             config: $this->config->vkSenderConfig,
             logger: $this->logger,
             successHook: new SuccessHook($this->logger, $this->storage),

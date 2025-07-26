@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Sc\Channels\Tg;
+namespace Sc\Channels\Tg\Sender;
 
 use Psr\Log\LoggerInterface;
 use Sc\Channels\SenderInterface;
@@ -12,9 +12,9 @@ use Sc\Model\PostIdCollection;
 use Sc\Service\MessageSplitter;
 use Sc\Service\SuccessHook;
 use Telegram\Bot\Api as TelegramApi;
+use Telegram\Bot\Exceptions\TelegramResponseException;
 use Telegram\Bot\FileUpload\InputFile;
 use Telegram\Bot\Objects\Message;
-use Telegram\Bot\Exceptions\TelegramResponseException;
 
 readonly class TelegramSender implements SenderInterface
 {

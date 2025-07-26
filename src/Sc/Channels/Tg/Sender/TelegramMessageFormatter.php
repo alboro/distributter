@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Sc\Channels\Tg;
+namespace Sc\Channels\Tg\Sender;
 
 use Sc\Model\Post;
 

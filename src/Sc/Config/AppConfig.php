@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Sc\Config;
 
+use Sc\Channels\Tg\Retriever\TgRetrieverConfig;
+use Sc\Channels\Tg\Sender\TgSenderConfig;
+use Sc\Channels\Vk\Retriever\VkRetrieverConfig;
+use Sc\Channels\Vk\Sender\VkSenderConfig;
+
 readonly class AppConfig
 {
     public const TAG_OF_IGNORE = '#local';
@@ -11,7 +16,6 @@ readonly class AppConfig
 
     public function __construct(
         public bool    $mockSenders,
-        public bool    $enableNotification,
         public ?string  $ignoreTag,
         public int     $itemCount,
         public int     $requestTimeoutSec,
@@ -21,16 +25,8 @@ readonly class AppConfig
         public ?VkSenderConfig $vkSenderConfig = null,
         public ?VkRetrieverConfig $vkRetrieverConfig = null,
         // tg
-        public string  $tgSenderBotToken = '',
-        public string  $tgSenderChannelId = '',
-        public string  $tgRetrieverApiId = '',
-        public string  $tgRetrieverApiHash = '',
-        public string  $tgRetrieverChannel = '',
-        public string  $tgRetrieverSessionFile = 'session.madeline',
-        // tg retrieval settings
-        public int     $tgRetrievalTimeoutSec = 30,
-        public int     $tgRetrievalMaxRetries = 3,
-        public int     $tgRetrievalRetryDelay = 2,
+        public ?TgSenderConfig $tgSenderConfig = null,
+        public ?TgRetrieverConfig $tgRetrieverConfig = null,
         // fb
         public string  $fbPageAccessToken = '',
         public string  $fbPageId = '',
@@ -42,7 +38,6 @@ readonly class AppConfig
     {
         return new self(
             mockSenders: !!($_ENV['DRY_RUN'] ?? false),
-            enableNotification: false,
             ignoreTag: $_ENV['TAG_OF_IGNORE'] ?? self::TAG_OF_IGNORE,
             itemCount: (int)($_ENV['ITEM_COUNT'] ?? self::ITEM_COUNT),
             requestTimeoutSec: (int)($_ENV['REQUEST_TIMEOUT_SEC'] ?? 30),
@@ -52,17 +47,8 @@ readonly class AppConfig
             vkSenderConfig: VkSenderConfig::fromEnvironment(),
             vkRetrieverConfig: VkRetrieverConfig::fromEnvironment(),
 
-            tgSenderBotToken: $_ENV['TG_SENDER_BOT_TOKEN'] ?? throw new \InvalidArgumentException('TG_SENDER_BOT_TOKEN is required'),
-            tgSenderChannelId: $_ENV['TG_SENDER_CHANNEL_ID'] ?? throw new \InvalidArgumentException('TG_SENDER_CHANNEL_ID is required'),
-            tgRetrieverApiId: $_ENV['TG_API_ID'] ?? '',
-            tgRetrieverApiHash: $_ENV['TG_API_HASH'] ?? '',
-            tgRetrieverChannel: $_ENV['TG_RETRIEVER_CHANNEL_ID'] ?? '',
-            tgRetrieverSessionFile: dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . ($_ENV['TG_SESSION_FILE'] ?? 'session.madeline'),
-
-            // tg retrieval settings
-            tgRetrievalTimeoutSec: (int)($_ENV['TG_RETRIEVAL_TIMEOUT_SEC'] ?? 30),
-            tgRetrievalMaxRetries: (int)($_ENV['TG_RETRIEVAL_MAX_RETRIES'] ?? 3),
-            tgRetrievalRetryDelay: (int)($_ENV['TG_RETRIEVAL_RETRY_DELAY'] ?? 2),
+            tgSenderConfig: TgSenderConfig::fromEnvironment(),
+            tgRetrieverConfig: TgRetrieverConfig::fromEnvironment(),
 
             fbPageAccessToken: $_ENV['FB_PAGE_ACCESS_TOKEN'] ?? '',
             fbPageId: $_ENV['FB_PAGE_ID'] ?? '',

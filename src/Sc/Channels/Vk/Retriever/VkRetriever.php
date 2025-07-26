@@ -2,12 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Sc\Channels\Vk;
+namespace Sc\Channels\Vk\Retriever;
 
 use Psr\Log\LoggerInterface;
 use Sc\Channels\RetrieverInterface;
-use Sc\Config\AppConfig;
-use Sc\Config\VkRetrieverConfig;
 use Sc\Filter\PostFilterException;
 use Sc\Model\{Post, PostId, PostIdCollection};
 use Sc\Service\Repository;

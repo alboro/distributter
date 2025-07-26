@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Sc\Config;
+namespace Sc\Channels\Vk\Retriever;
+
+use Sc\Config\AppConfig;
 
 readonly class VkRetrieverConfig
 {

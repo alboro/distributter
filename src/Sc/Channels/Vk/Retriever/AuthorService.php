@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Sc\Channels\Vk;
+namespace Sc\Channels\Vk\Retriever;
 
 use Psr\Log\LoggerInterface;
 use VK\Client\VKApiClient;
