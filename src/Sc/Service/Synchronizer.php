@@ -250,7 +250,7 @@ final readonly class Synchronizer
                 try {
                     $madelineProto = new API($this->config->tgRetrieverConfig->sessionFile, $settings);
                 } catch (\Throwable $e) {
-                    $fixer->run(
+                    $madelineProto = $fixer->run(
                         $e,
                         fn () => new API($this->config->tgRetrieverConfig->sessionFile, $settings),
                     );

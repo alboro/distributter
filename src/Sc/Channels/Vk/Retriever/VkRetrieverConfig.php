@@ -12,8 +12,8 @@ readonly class VkRetrieverConfig
     private function __construct(
         public string $token,
         public string $groupId,
-        public array $excludePostIds = [],
         public CommonChannelConfigDto $dto,
+        public array $excludePostIds = [],
     ) {}
 
     public static function fromEnvironment(): ?self
@@ -29,6 +29,6 @@ readonly class VkRetrieverConfig
             return null;
         }
 
-        return new self($token, $groupId, $excludePostIds, new CommonChannelConfigDto($itemCount, $tagOfIgnore));
+        return new self($token, $groupId, new CommonChannelConfigDto($itemCount, $tagOfIgnore), $excludePostIds);
     }
 }

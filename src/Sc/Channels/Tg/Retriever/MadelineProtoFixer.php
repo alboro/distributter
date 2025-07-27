@@ -149,7 +149,7 @@ class MadelineProtoFixer
     {
         $this->logger->info('Cleaning up MadelineProto session files');
 
-        $sessionDirs = $this->findSessionDirectories();
+        $sessionDirs = [$this->sessionPath];
         $cleanedCount = 0;
 
         foreach ($sessionDirs as $sessionDir) {
@@ -187,47 +187,6 @@ class MadelineProtoFixer
         }
 
         $this->logger->info("Cleaned up $cleanedCount session files");
-    }
-
-    /**
-     * Find all MadelineProto session directories
-     */
-    private function findSessionDirectories(): array
-    {
-        $sessionDirs = [];
-
-        // Add the main session path from config
-        if (is_dir($this->sessionPath)) {
-            $sessionDirs[] = $this->sessionPath;
-        }
-
-        // Search common locations
-        $searchPaths = [
-            $this->projectRoot,
-            $this->projectRoot . '/bin',
-            $this->projectRoot . '/config',
-            $this->projectRoot . '/storage',
-            $this->projectRoot . '/sessions'
-        ];
-
-        foreach ($searchPaths as $path) {
-            if (!is_dir($path)) {
-                continue;
-            }
-
-            // Look for .madeline directories
-            $iterator = new \RecursiveIteratorIterator(
-                new \RecursiveDirectoryIterator($path, \RecursiveDirectoryIterator::SKIP_DOTS)
-            );
-
-            foreach ($iterator as $file) {
-                if ($file->isDir() && str_contains($file->getFilename(), '.madeline')) {
-                    $sessionDirs[] = $file->getPathname();
-                }
-            }
-        }
-
-        return array_unique($sessionDirs);
     }
 
     /**
