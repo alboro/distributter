@@ -30,8 +30,6 @@ readonly class AppConfig
         // fb
         public string  $fbPageAccessToken = '',
         public string  $fbPageId = '',
-        public bool    $fbEnableRetriever = false,
-        public bool    $fbEnableSender = false,
     ) {}
 
     public static function fromEnvironment(): self
@@ -52,8 +50,6 @@ readonly class AppConfig
 
             fbPageAccessToken: $_ENV['FB_PAGE_ACCESS_TOKEN'] ?? '',
             fbPageId: $_ENV['FB_PAGE_ID'] ?? '',
-            fbEnableRetriever: filter_var($_ENV['FB_ENABLE_RETRIEVER'] ?? 'false', FILTER_VALIDATE_BOOLEAN),
-            fbEnableSender: filter_var($_ENV['FB_ENABLE_SENDER'] ?? 'false', FILTER_VALIDATE_BOOLEAN),
         );
     }
 }

@@ -77,6 +77,10 @@ STORAGE_FILE_PATH=./storage.v3.json
 LOG_FILE_PATH=./log.log
 REQUEST_TIMEOUT_SEC=30
 ITEM_COUNT=5
+
+# Facebook setttings
+FB_PAGE_ACCESS_TOKEN=your_facebook_page_token
+FB_PAGE_ID=your_facebook_page_id
 ```
 
 ### Deployment Configuration
@@ -112,6 +116,8 @@ source deploy.conf && ./bin/deploy.sh force
 # Set up cron job for automatic synchronization
 # Add to crontab: */5 * * * * cd /var/www/distributter && php bin/distributter.php
 ```
+Get in Facebook Developers Console:
+Permissions needed: pages_read_engagement, pages_manage_posts
 
 ### Docker
 ```sh

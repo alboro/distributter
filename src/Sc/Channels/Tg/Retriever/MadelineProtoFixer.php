@@ -267,6 +267,50 @@ class MadelineProtoFixer
     /**
      * Check if the exception is a MadelineProto IPC issue
      */
+    public function run(\Throwable $e, ?Callable $success = null, ?Callable $fail = null): mixed
+    {
+        $success = null === $success ? fn () => null : $success;
+        $fail = null === $fail ? fn (\Throwable $e) => throw $e : $fail;
+
+        if (self::isMadelineProtoIpcException($e)) {
+            $this->logger->warning('Detected MadelineProto IPC issue, attempting automatic fix', [
+                'error' => $e->getMessage()
+            ]);
+
+            // Try to automatically fix the issue
+            if ($this->fixIssues()) {
+                $this->logger->info('MadelineProto issues fixed, retrying operation');
+
+                // Give some time for restart after fix
+                sleep(3);
+
+                try {
+                    // Retry after fix
+                    $response = $success();
+
+                    $this->logger->info('Successfully retried after MadelineProto fix');
+                    return $response;
+
+                } catch (\Throwable $retryError) {
+                    $this->logger->error('Still failing after MadelineProto fix attempt', [
+                        'original_error' => $e->getMessage(),
+                        'retry_error' => $retryError->getMessage()
+                    ]);
+
+                    // If this is still a peer issue, handle as usual
+                    return $fail($retryError);
+                }
+            } else {
+                $this->logger->error('Failed to automatically fix MadelineProto issues');
+            }
+        }
+
+        return $fail($e);
+    }
+
+    /**
+     * Check if the exception is a MadelineProto IPC issue
+     */
     public static function isMadelineProtoIpcException(\Throwable $exception): bool
     {
         $message = $exception->getMessage();
