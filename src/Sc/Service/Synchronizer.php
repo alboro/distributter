@@ -183,10 +183,7 @@ final readonly class Synchronizer
         }
         $vkApiClient = new VKApiClient();
         $attachmentParser = new VkAttachmentParser($this->config->requestTimeoutSec);
-
-        // Using token from VkRetrieverConfig or fallback to empty string
-        $token = $this->config->vkRetrieverConfig?->token ?? '';
-        $authorService = new AuthorService($vkApiClient, $token, $this->logger);
+        $authorService = new AuthorService($vkApiClient, $this->config->vkRetrieverConfig->token, $this->logger);
 
         // Creating VK retriever
         return new VkRetriever(
@@ -300,9 +297,6 @@ final readonly class Synchronizer
         return $telegramRetriever;
     }
 
-    /**
-     * Создает Facebook ретривер, если настроен
-     */
     private function fbRetrieverFactory(): ?FacebookRetriever
     {
         if (empty($this->config->fbPageAccessToken) || empty($this->config->fbPageId)) {
