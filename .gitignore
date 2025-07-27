@@ -8,6 +8,7 @@
 /bin/sync.lock
 MadelineProto.log
 log.log
+prod.log
 deploy.conf
 test-vk-items.json
 storage.json

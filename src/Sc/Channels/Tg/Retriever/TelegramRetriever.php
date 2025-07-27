@@ -17,16 +17,14 @@ use Sc\Service\Repository;
  */
 readonly class TelegramRetriever implements RetrieverInterface
 {
-    private MadelineProtoFixer $fixer;
-
     public function __construct(
         private API $madelineProto,
         private AppConfig $config,
         private LoggerInterface $logger,
         private Repository $storage,
         private string $systemName,
+        private MadelineProtoFixer $fixer,
     ) {
-        $this->fixer = new MadelineProtoFixer($this->logger, dirname($config->tgRetrieverConfig?->sessionFile ?? 'session.madeline'));
     }
 
     public function systemName(): string
@@ -67,47 +65,14 @@ readonly class TelegramRetriever implements RetrieverInterface
     {
         try {
             // First try to get messages directly
-            $response = $this->getHistory();
-
-            return $response['messages'] ?? [];
+            return $this->getHistory();
 
         } catch (\Throwable $e) {
-            // Check if this is a MadelineProto IPC error
-            if (MadelineProtoFixer::isMadelineProtoIpcException($e)) {
-                $this->logger->warning('Detected MadelineProto IPC issue, attempting automatic fix', [
-                    'error' => $e->getMessage()
-                ]);
-
-                // Try to automatically fix the issue
-                if ($this->fixer->fixIssues()) {
-                    $this->logger->info('MadelineProto issues fixed, retrying operation');
-
-                    // Give some time for restart after fix
-                    sleep(3);
-
-                    try {
-                        // Retry after fix
-                        $response = $this->getHistory();
-
-                        $this->logger->info('Successfully retrieved messages after fixing MadelineProto issues');
-                        return $response['messages'] ?? [];
-
-                    } catch (\Throwable $retryError) {
-                        $this->logger->error('Still failing after MadelineProto fix attempt', [
-                            'original_error' => $e->getMessage(),
-                            'retry_error' => $retryError->getMessage()
-                        ]);
-
-                        // If this is still a peer issue, handle as usual
-                        return $this->handlePeerDatabaseException($retryError);
-                    }
-                } else {
-                    $this->logger->error('Failed to automatically fix MadelineProto issues');
-                }
-            }
-
-            // Handle other errors (including peer issues)
-            return $this->handlePeerDatabaseException($e);
+            return $this->fixer->run(
+                $e,
+                fn () => $this->getHistory(),
+                fn (\Throwable $throwable) => $this->handlePeerDatabaseException($throwable)
+            );
         }
     }
 
@@ -173,7 +138,7 @@ readonly class TelegramRetriever implements RetrieverInterface
                 }, $timeout);
 
                 $this->logger->debug("Successfully retrieved history on attempt {$attempt}");
-                return $result;
+                return $result['messages'] ?? [];
 
             } catch (\Throwable $e) {
                 $this->logger->warning("Attempt {$attempt} failed: " . $e->getMessage());

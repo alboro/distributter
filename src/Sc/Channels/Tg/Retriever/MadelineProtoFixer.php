@@ -149,7 +149,7 @@ class MadelineProtoFixer
     {
         $this->logger->info('Cleaning up MadelineProto session files');
 
-        $sessionDirs = $this->findSessionDirectories();
+        $sessionDirs = [$this->sessionPath];
         $cleanedCount = 0;
 
         foreach ($sessionDirs as $sessionDir) {
@@ -190,47 +190,6 @@ class MadelineProtoFixer
     }
 
     /**
-     * Find all MadelineProto session directories
-     */
-    private function findSessionDirectories(): array
-    {
-        $sessionDirs = [];
-
-        // Add the main session path from config
-        if (is_dir($this->sessionPath)) {
-            $sessionDirs[] = $this->sessionPath;
-        }
-
-        // Search common locations
-        $searchPaths = [
-            $this->projectRoot,
-            $this->projectRoot . '/bin',
-            $this->projectRoot . '/config',
-            $this->projectRoot . '/storage',
-            $this->projectRoot . '/sessions'
-        ];
-
-        foreach ($searchPaths as $path) {
-            if (!is_dir($path)) {
-                continue;
-            }
-
-            // Look for .madeline directories
-            $iterator = new \RecursiveIteratorIterator(
-                new \RecursiveDirectoryIterator($path, \RecursiveDirectoryIterator::SKIP_DOTS)
-            );
-
-            foreach ($iterator as $file) {
-                if ($file->isDir() && str_contains($file->getFilename(), '.madeline')) {
-                    $sessionDirs[] = $file->getPathname();
-                }
-            }
-        }
-
-        return array_unique($sessionDirs);
-    }
-
-    /**
      * Check PHP configuration for MadelineProto compatibility
      */
     private function checkPhpConfiguration(): void
@@ -262,6 +221,50 @@ class MadelineProtoFixer
         // Check max execution time
         $maxExecutionTime = ini_get('max_execution_time');
         $this->logger->info("PHP max execution time: $maxExecutionTime");
+    }
+
+    /**
+     * Check if the exception is a MadelineProto IPC issue
+     */
+    public function run(\Throwable $e, ?Callable $success = null, ?Callable $fail = null): mixed
+    {
+        $success = null === $success ? fn () => null : $success;
+        $fail = null === $fail ? fn (\Throwable $e) => throw $e : $fail;
+
+        if (self::isMadelineProtoIpcException($e)) {
+            $this->logger->warning('Detected MadelineProto IPC issue, attempting automatic fix', [
+                'error' => $e->getMessage()
+            ]);
+
+            // Try to automatically fix the issue
+            if ($this->fixIssues()) {
+                $this->logger->info('MadelineProto issues fixed, retrying operation');
+
+                // Give some time for restart after fix
+                sleep(3);
+
+                try {
+                    // Retry after fix
+                    $response = $success();
+
+                    $this->logger->info('Successfully retried after MadelineProto fix');
+                    return $response;
+
+                } catch (\Throwable $retryError) {
+                    $this->logger->error('Still failing after MadelineProto fix attempt', [
+                        'original_error' => $e->getMessage(),
+                        'retry_error' => $retryError->getMessage()
+                    ]);
+
+                    // If this is still a peer issue, handle as usual
+                    return $fail($retryError);
+                }
+            } else {
+                $this->logger->error('Failed to automatically fix MadelineProto issues');
+            }
+        }
+
+        return $fail($e);
     }
 
     /**

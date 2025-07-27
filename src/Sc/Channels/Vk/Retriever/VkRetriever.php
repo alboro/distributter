@@ -56,7 +56,7 @@ readonly class VkRetriever implements RetrieverInterface
         return $this->vk->wall()->get($this->config->token, [
             'owner_id' => $this->config->groupId,
             'offset' => 0,
-            'count' => $this->config->itemCount,
+            'count' => $this->config->dto->itemCount,
         ]);
     }
 
@@ -163,7 +163,7 @@ readonly class VkRetriever implements RetrieverInterface
     private function hasIgnoreTag(string $text): bool
     {
         return (bool)preg_match(
-            '/(?:^|\s)' . preg_quote($this->config->ignoreTag, '/') . '(?:\s|$)/i',
+            '/(?:^|\s)' . preg_quote($this->config->dto->ignoreTag, '/') . '(?:\s|$)/i',
             $text
         );
     }

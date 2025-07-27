@@ -9,8 +9,10 @@ use danog\MadelineProto\Settings;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
 use Psr\Log\LoggerInterface;
+use Sc\Channels\Fb\FacebookSender;
 use Sc\Channels\RetrieverInterface;
 use Sc\Channels\SenderInterface;
+use Sc\Channels\Tg\Retriever\MadelineProtoFixer;
 use Sc\Channels\Tg\Retriever\TelegramRetriever;
 use Sc\Channels\Tg\Sender\TelegramSender;
 use Sc\Channels\Vk\Retriever\AuthorService;
@@ -68,11 +70,15 @@ final readonly class Synchronizer
         $vkRetriever = $this->vkRetrieverFactory();
         $vkSender = $this->vkSenderFactory();
 
-        $this->retrievers = array_filter([$vkRetriever, $telegramRetriever]);
+        // Facebook
+        $facebookRetriever = $this->fbRetrieverFactory();
+        $facebookSender = $this->fbSenderFactory();
+
+        $this->retrievers = array_filter([$vkRetriever, $telegramRetriever, $facebookRetriever]);
         if ($this->config->mockSenders) {
             $this->senders = [];
         } else {
-            $this->senders = array_filter([$telegramSender, $vkSender]);
+            $this->senders = array_filter([$telegramSender, $vkSender, $facebookSender]);
         }
     }
 
@@ -208,11 +214,12 @@ final readonly class Synchronizer
     private function tgRetrieverFactory(): ?TelegramRetriever
     {
         $telegramRetriever = null;
-        if (!empty($this->config->tgRetrieverApiId) && !empty($this->config->tgRetrieverApiHash)) {
+        if (null !== $this->config->tgRetrieverConfig) {
+            $fixer = new MadelineProtoFixer($this->logger, dirname($this->config->tgRetrieverConfig?->sessionFile ?? 'session.madeline'));
             try {
                 $settings = new Settings();
-                $settings->getAppInfo()->setApiId((int)$this->config->tgRetrieverApiId);
-                $settings->getAppInfo()->setApiHash($this->config->tgRetrieverApiHash);
+                $settings->getAppInfo()->setApiId((int)$this->config->tgRetrieverConfig->apiId);
+                $settings->getAppInfo()->setApiHash($this->config->tgRetrieverConfig->apiHash);
 
                 // Disabling MadelineProto logging to avoid corrupting our logs
                 $settings->getLogger()->setType(\danog\MadelineProto\Logger::ECHO_LOGGER);
@@ -231,17 +238,23 @@ final readonly class Synchronizer
                 $settings->getConnection()->setPingInterval(30); // Increasing ping interval
 
                 // Checking if the session file exists
-                if (!file_exists($this->config->tgRetrieverSessionFile)) {
+                if (!file_exists($this->config->tgRetrieverConfig->sessionFile)) {
                     $this->logger->error('Telegram session file not found. Run: php bin/auth-telegram.php', [
-                        'session_file' => $this->config->tgRetrieverSessionFile
+                        'session_file' => $this->config->tgRetrieverConfig->sessionFile
                     ]);
                     throw new \Exception('Telegram session required');
                 }
 
                 // Saving current error handler
                 $currentErrorHandler = set_error_handler(null);
-
-                $madelineProto = new API($this->config->tgRetrieverSessionFile, $settings);
+                try {
+                    $madelineProto = new API($this->config->tgRetrieverConfig->sessionFile, $settings);
+                } catch (\Throwable $e) {
+                    $madelineProto = $fixer->run(
+                        $e,
+                        fn () => new API($this->config->tgRetrieverConfig->sessionFile, $settings),
+                    );
+                }
 
                 // Attempting to start and verify authorization
                 try {
@@ -275,6 +288,7 @@ final readonly class Synchronizer
                     logger: $this->logger,
                     storage: $this->storage,
                     systemName: 'tg',
+                    fixer: $fixer,
                 );
             } catch (\Throwable $e) {
                 $this->logger->warning('Failed to initialize Telegram retriever', [
@@ -283,5 +297,57 @@ final readonly class Synchronizer
             }
         }
         return $telegramRetriever;
+    }
+
+    /**
+     * Создает Facebook ретривер, если настроен
+     */
+    private function fbRetrieverFactory(): ?FacebookRetriever
+    {
+        if (empty($this->config->fbPageAccessToken) || empty($this->config->fbPageId) || !$this->config->fbEnableRetriever) {
+            return null;
+        }
+
+        try {
+            return new FacebookRetriever(
+                accessToken: $this->config->fbPageAccessToken,
+                pageId: $this->config->fbPageId,
+                config: $this->config,
+                logger: $this->logger,
+                storage: $this->storage,
+                systemName: 'fb',
+                requestTimeoutSec: $this->config->requestTimeoutSec
+            );
+        } catch (\Throwable $e) {
+            $this->logger->warning('Failed to initialize Facebook retriever', [
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
+    }
+
+    private function fbSenderFactory(): ?FacebookSender
+    {
+        if (empty($this->config->fbPageAccessToken) || empty($this->config->fbPageId)) {
+            return null;
+        }
+
+        try {
+            $messageSplitter = new MessageSplitter(63206); // @todo: do not split, just don't post if too long
+
+            return new FacebookSender(
+                accessToken: $this->config->fbPageAccessToken,
+                pageId: $this->config->fbPageId,
+                logger: $this->logger,
+                successHook: new SuccessHook($this->logger, $this->storage),
+                systemName: 'fb',
+                requestTimeoutSec: $this->config->requestTimeoutSec
+            );
+        } catch (\Throwable $e) {
+            $this->logger->warning('Failed to initialize Facebook sender', [
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
     }
 }
