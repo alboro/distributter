@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "79f643abd0bebb142ef3041c39272960",
+    "content-hash": "d11cef93b02aa5ae06cf41d842a1c746",
     "packages": [
         {
             "name": "amphp/amp",
@@ -2402,16 +2402,16 @@
         },
         {
             "name": "danog/madelineproto",
-            "version": "8.4.21",
+            "version": "8.5.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/danog/MadelineProto.git",
-                "reference": "b329fccd95e6795cbabe18496005c2e9e324dfdb"
+                "reference": "6c7c1ea136162b5fdfebfc713eacacd7a634a7fd"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/danog/MadelineProto/zipball/b329fccd95e6795cbabe18496005c2e9e324dfdb",
-                "reference": "b329fccd95e6795cbabe18496005c2e9e324dfdb",
+                "url": "https://api.github.com/repos/danog/MadelineProto/zipball/6c7c1ea136162b5fdfebfc713eacacd7a634a7fd",
+                "reference": "6c7c1ea136162b5fdfebfc713eacacd7a634a7fd",
                 "shasum": ""
             },
             "require": {
@@ -2519,7 +2519,7 @@
             ],
             "support": {
                 "issues": "https://github.com/danog/MadelineProto/issues",
-                "source": "https://github.com/danog/MadelineProto/tree/8.4.21"
+                "source": "https://github.com/danog/MadelineProto/tree/8.5.1"
             },
             "funding": [
                 {
@@ -2527,7 +2527,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-07-25T15:11:23+00:00"
+            "time": "2025-07-27T16:29:01+00:00"
         },
         {
             "name": "danog/primemodule",
@@ -7225,7 +7225,7 @@
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
-        "php": ">=8.1",
+        "php": ">=8.3",
         "ext-json": "*",
         "ext-curl": "*",
         "ext-posix": "*",

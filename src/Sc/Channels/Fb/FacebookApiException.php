@@ -8,7 +8,7 @@ class FacebookApiException extends \Exception
 {
     private array $responseData;
 
-    public function __construct(string $message, int $code = 0, array $responseData = [], \Throwable $previous = null)
+    public function __construct(string $message, int $code = 0, array $responseData = [], ?\Throwable $previous = null)
     {
         parent::__construct($message, $code, $previous);
         $this->responseData = $responseData;

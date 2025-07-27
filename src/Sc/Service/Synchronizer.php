@@ -9,6 +9,7 @@ use danog\MadelineProto\Settings;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
 use Psr\Log\LoggerInterface;
+use Sc\Channels\Fb\FacebookRetriever;
 use Sc\Channels\Fb\FacebookSender;
 use Sc\Channels\RetrieverInterface;
 use Sc\Channels\SenderInterface;
@@ -304,7 +305,7 @@ final readonly class Synchronizer
      */
     private function fbRetrieverFactory(): ?FacebookRetriever
     {
-        if (empty($this->config->fbPageAccessToken) || empty($this->config->fbPageId) || !$this->config->fbEnableRetriever) {
+        if (empty($this->config->fbPageAccessToken) || empty($this->config->fbPageId)) {
             return null;
         }
 

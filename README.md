@@ -79,8 +79,8 @@ REQUEST_TIMEOUT_SEC=30
 ITEM_COUNT=5
 
 # Facebook setttings
-FB_PAGE_ACCESS_TOKEN=your_facebook_page_token
-FB_PAGE_ID=your_facebook_page_id
+# FB_PAGE_ACCESS_TOKEN=your_facebook_page_token
+# FB_PAGE_ID=your_facebook_page_id
 ```
 
 ### Deployment Configuration
@@ -217,7 +217,6 @@ php bin/auth-telegram.php
 * Group retrieved posts from Telegram (see `src/Sc/Channels/Tg/TelegramRetriever.php:16`), use also tags or time as group criteria
 * add special tags which define if to remove links or transform them into just text (tg supports html, vk - no)
 * Add auto-tests and CI/CD pipeline
-* VK: Increase post character limits
 * VK: To parse `[id2911722|Alex Ivanov]` in a more correct way, transform internal feed links into links of appropriate channel
 * Add system abstraction (e.g., tg2tg sync) and more flexibility via configs
 * Support for gradual synchronization of the old channel with the newer one. Individual limits for retrievers coordinated with this.
