@@ -243,15 +243,37 @@ final readonly class Synchronizer
                     throw new \Exception('Telegram session required');
                 }
 
+                // Proactive health check and fixing before creating API
+                if (!$fixer->isHealthy()) {
+                    $this->logger->warning('MadelineProto health check failed before API creation, attempting to fix');
+                    $fixer->fixIssues();
+                }
+
                 // Saving current error handler
                 $currentErrorHandler = set_error_handler(null);
                 try {
                     $madelineProto = new API($this->config->tgRetrieverConfig->sessionFile, $settings);
                 } catch (\Throwable $e) {
-                    $madelineProto = $fixer->run(
-                        $e,
-                        fn () => new API($this->config->tgRetrieverConfig->sessionFile, $settings),
-                    );
+                    // Check if this is a MadelineProto issue that our fixer can resolve
+                    $this->logger->warning('Failed to create MadelineProto API, attempting to fix issues', [
+                        'error' => $e->getMessage()
+                    ]);
+
+                    // Try to fix the issues
+                    if ($fixer->fixIssues()) {
+                        $this->logger->info('Issues fixed, retrying MadelineProto API creation');
+                        try {
+                            $madelineProto = new API($this->config->tgRetrieverConfig->sessionFile, $settings);
+                        } catch (\Throwable $retryError) {
+                            $this->logger->error('Failed to create MadelineProto API even after fixing issues', [
+                                'error' => $retryError->getMessage()
+                            ]);
+                            throw $retryError;
+                        }
+                    } else {
+                        $this->logger->error('Failed to fix MadelineProto issues');
+                        throw $e;
+                    }
                 }
 
                 // Attempting to start and verify authorization
