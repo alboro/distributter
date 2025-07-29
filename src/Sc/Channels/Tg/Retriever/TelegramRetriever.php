@@ -49,6 +49,12 @@ readonly class TelegramRetriever implements RetrieverInterface
             return [];
         }
 
+        // Check MadelineProto health before attempting to retrieve posts
+        if (!$this->fixer->isHealthy()) {
+            $this->logger->warning('MadelineProto health check failed, attempting to fix issues');
+            $this->fixer->fixIssues();
+        }
+
         try {
             $messages = $this->fetchTelegramMessages();
             return $this->processTelegramMessages($messages);
@@ -57,8 +63,51 @@ readonly class TelegramRetriever implements RetrieverInterface
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
+
+            // Check if this is a "Too many open files" or similar MadelineProto issue
+            if ($this->isMadelineProtoIssue($e)) {
+                $this->logger->info('Detected MadelineProto issue, attempting automatic fix');
+
+                if ($this->fixer->fixIssues()) {
+                    $this->logger->info('Auto-fix successful, retrying message retrieval');
+                    try {
+                        $messages = $this->fetchTelegramMessages();
+                        return $this->processTelegramMessages($messages);
+                    } catch (\Throwable $retryError) {
+                        $this->logger->error('Failed to retrieve messages even after auto-fix', [
+                            'error' => $retryError->getMessage()
+                        ]);
+                    }
+                }
+            }
+
             return [];
         }
+    }
+
+    /**
+     * Check if the exception is related to MadelineProto issues
+     */
+    private function isMadelineProtoIssue(\Throwable $e): bool
+    {
+        $message = $e->getMessage();
+        $madelineProtoErrors = [
+            'Too many open files',
+            'Could not connect to MadelineProto',
+            'Failed to write to stream',
+            'Broken pipe',
+            'Sending on the channel failed',
+            'fopen(): Failed to open stream: Too many open files',
+            'include(): Failed to open stream: Too many open files'
+        ];
+
+        foreach ($madelineProtoErrors as $error) {
+            if (strpos($message, $error) !== false) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function fetchTelegramMessages(): array
@@ -68,11 +117,8 @@ readonly class TelegramRetriever implements RetrieverInterface
             return $this->getHistory();
 
         } catch (\Throwable $e) {
-            return $this->fixer->run(
-                $e,
-                fn () => $this->getHistory(),
-                fn (\Throwable $throwable) => $this->handlePeerDatabaseException($throwable)
-            );
+            // Handle peer database exceptions specifically
+            return $this->handlePeerDatabaseException($e);
         }
     }
 
