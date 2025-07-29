@@ -119,13 +119,13 @@ class MadelineProtoFixer
 
         // Kill MadelineProto worker processes
         $killedWorkers = shell_exec("pkill -f 'MadelineProto worker' 2>/dev/null; echo $?");
-        if (trim($killedWorkers) === '0') {
+        if (trim($killedWorkers ?? '') === '0') {
             $this->logger->info('✅ Killed MadelineProto worker processes');
         }
 
         // Kill entry.php processes
         $killedEntry = shell_exec("pkill -f 'entry.php.*madeline' 2>/dev/null; echo $?");
-        if (trim($killedEntry) === '0') {
+        if (trim($killedEntry ?? '') === '0') {
             $this->logger->info('✅ Killed MadelineProto entry processes');
         }
 
@@ -154,6 +154,9 @@ class MadelineProtoFixer
             $this->logger->info("Session directory doesn't exist: $sessionDir");
             return;
         }
+
+        // Fix permissions first
+        $this->fixSessionPermissions();
 
         $filesToClean = [
             'ipcState.php.lock',
@@ -190,6 +193,86 @@ class MadelineProtoFixer
             $this->logger->info("✅ Cleaned up $cleanedFiles session files");
         } else {
             $this->logger->info('No session files needed cleaning');
+        }
+
+        // Fix permissions again after cleanup
+        $this->fixSessionPermissions();
+    }
+
+    /**
+     * Fix permissions on session files
+     */
+    private function fixSessionPermissions(): void
+    {
+        if (!is_dir($this->sessionPath)) {
+            return;
+        }
+
+        $this->logger->info('🔧 Fixing session file permissions');
+
+        // Get current user info
+        $currentUser = get_current_user();
+        $currentUid = getmyuid();
+        $currentGid = getmygid();
+
+        $this->logger->debug("Current user: $currentUser (UID: $currentUid, GID: $currentGid)");
+
+        try {
+            // Fix directory permissions
+            if (!is_writable($this->sessionPath)) {
+                if (function_exists('shell_exec')) {
+                    // Try to fix ownership using sudo if needed
+                    $result = shell_exec("ls -la " . escapeshellarg($this->sessionPath) . "/../ | grep " . basename($this->sessionPath));
+                    $this->logger->debug("Session directory permissions: $result");
+
+                    // Check if directory is owned by root or different user
+                    if (strpos($result, 'root') !== false) {
+                        $this->logger->warning('Session directory is owned by root, attempting to fix');
+
+                        // Try to change ownership to current user
+                        $chownResult = shell_exec("sudo chown -R $currentUser:$currentUser " . escapeshellarg($this->sessionPath) . " 2>&1");
+                        if ($chownResult) {
+                            $this->logger->info("Changed ownership result: $chownResult");
+                        }
+                    }
+                }
+
+                // Try to make directory writable
+                chmod($this->sessionPath, 0755);
+            }
+
+            // Fix permissions on all files in session directory
+            $files = scandir($this->sessionPath);
+            foreach ($files as $file) {
+                if ($file === '.' || $file === '..') {
+                    continue;
+                }
+
+                $fullPath = $this->sessionPath . '/' . $file;
+
+                if (is_file($fullPath)) {
+                    // Check current owner
+                    $fileInfo = stat($fullPath);
+                    if ($fileInfo && $fileInfo['uid'] !== $currentUid) {
+                        $this->logger->warning("File $file is owned by UID {$fileInfo['uid']}, trying to fix");
+
+                        if (function_exists('shell_exec')) {
+                            shell_exec("sudo chown $currentUser:$currentUser " . escapeshellarg($fullPath) . " 2>/dev/null");
+                        }
+                    }
+
+                    // Make file readable and writable by owner
+                    if (!is_writable($fullPath)) {
+                        chmod($fullPath, 0644);
+                        $this->logger->debug("Fixed permissions for: $file");
+                    }
+                }
+            }
+
+            $this->logger->info('✅ Session file permissions fixed');
+
+        } catch (\Throwable $e) {
+            $this->logger->warning('Failed to fix some permissions: ' . $e->getMessage());
         }
     }
 

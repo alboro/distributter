@@ -392,8 +392,6 @@ readonly class VkSender implements SenderInterface
      */
     private function cleanText(string $text): string
     {
-        return file_get_contents('/Users/aldem/PhpstormProjects/vk2tg/test.txt');
-
         // First decode HTML entities (multiple passes to handle nested entities)
         $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
         $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8'); // Second pass for safety
