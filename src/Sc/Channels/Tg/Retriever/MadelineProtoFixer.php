@@ -158,6 +158,9 @@ class MadelineProtoFixer
         // Fix permissions first
         $this->fixSessionPermissions();
 
+        // Get current user info for file ownership checks
+        $currentUid = getmyuid();
+
         $filesToClean = [
             'ipcState.php.lock',
             'lightState.php.lock',
@@ -171,6 +174,25 @@ class MadelineProtoFixer
         foreach ($filesToClean as $file) {
             $fullPath = $sessionDir . '/' . $file;
             if (file_exists($fullPath)) {
+                // Check if file is owned by different user (likely root)
+                $fileInfo = stat($fullPath);
+                if ($fileInfo && $fileInfo['uid'] !== $currentUid) {
+                    $this->logger->warning("Lock file $file is owned by UID {$fileInfo['uid']}, attempting forced removal");
+
+                    // Try to remove using sudo if available
+                    if (function_exists('shell_exec')) {
+                        $result = shell_exec("sudo rm -f " . escapeshellarg($fullPath) . " 2>&1");
+                        if (!file_exists($fullPath)) {
+                            $this->logger->info("✅ Successfully removed with sudo: $file");
+                            $cleanedFiles++;
+                            continue;
+                        } else {
+                            $this->logger->warning("Failed to remove with sudo: $file - $result");
+                        }
+                    }
+                }
+
+                // Try normal removal
                 if (unlink($fullPath)) {
                     $this->logger->info("✅ Removed: $file");
                     $cleanedFiles++;
