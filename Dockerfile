@@ -5,6 +5,9 @@ RUN apt-get update && apt-get install -y \
     libzip-dev \
     libonig-dev \
     cron \
+    python3 \
+    python3-pip \
+    ffmpeg \
     && docker-php-ext-install \
     zip \
     mbstring \
@@ -13,6 +16,9 @@ RUN apt-get update && apt-get install -y \
     posix \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# Install TTS
+RUN pip3 install TTS
 
 RUN php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
 RUN php composer-setup.php

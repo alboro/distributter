@@ -214,7 +214,7 @@ php bin/auth-telegram.php
 4. Register new services in `Synchronizer`
 
 ## TODO
-* Split everything into separate processes by retrieving/sending/channel criteria. Use SymfonyMessager/SymfonyLocks.
+* Split everything into separate processes by retrieving/sending/channel criteria. Use SymfonyMessager/SymfonyLocks. host process waits for child process to be finished. after timeout host process thows exception. 
 * vk is text (not quite, some kind of markdown), tg is html, reflect it in Post model
 * think about internal sender/retriever,
 * not all links are parsed from tg
