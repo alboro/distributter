@@ -1,13 +1,13 @@
-FROM php:8.3-cli
+FROM php:8.4-cli
 
 RUN apt-get update && apt-get install -y \
     unzip \
     libzip-dev \
     libonig-dev \
     cron \
-    python3 \
-    python3-pip \
-    ffmpeg \
+    procps \
+    htop \
+    git \
     && docker-php-ext-install \
     zip \
     mbstring \
@@ -16,9 +16,6 @@ RUN apt-get update && apt-get install -y \
     posix \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-
-# Install TTS
-RUN pip3 install TTS
 
 RUN php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
 RUN php composer-setup.php
@@ -35,7 +32,7 @@ RUN echo "*/5 * * * * cd /app && php bin/distributter.php" | crontab -
 
 # Create startup script for cron
 RUN echo '#!/bin/bash\n\
-echo "Starting cron daemon..."\n\
+echo "Starting distributter container..."\n\
 echo "Distributter will run every 5 minutes."\n\
 echo "First run will be within 5 minutes."\n\
 echo ""\n\
@@ -49,5 +46,4 @@ exec cron -f' > /app/start.sh
 
 RUN chmod +x /app/start.sh
 
-# Start cron and follow logs
 CMD ["/app/start.sh"]

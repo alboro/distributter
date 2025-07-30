@@ -17,7 +17,7 @@ readonly class VkSenderConfig
         $token = $_ENV['VK_SENDER_TOKEN'] ?? '';
         $groupId = $_ENV['VK_SENDER_GROUP_ID'] ?? '';
 
-        // Если какой-то из параметров не указан, возвращаем null
+        // If any parameter is not specified, return null
         if (empty($token) || empty($groupId)) {
             return null;
         }

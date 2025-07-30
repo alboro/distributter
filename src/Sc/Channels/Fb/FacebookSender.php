@@ -120,7 +120,7 @@ readonly class FacebookSender implements SenderInterface
             } catch (FacebookApiException $e) {
                 $attempt++;
 
-                // Проверяем, является ли это ошибкой лимита
+                // Check if this is a rate limit error
                 if ($this->isRateLimitError($e)) {
                     $delay = self::BASE_DELAY_SECONDS * $attempt;
 

@@ -130,6 +130,10 @@ docker run -d --name distributter distributter
 # show logs
 docker logs -f distributter
 ```
+or
+```
+docker-compose up -d
+```
 ## Usage
 
 ### Manual Synchronization

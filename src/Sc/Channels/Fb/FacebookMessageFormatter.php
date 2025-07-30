@@ -14,16 +14,16 @@ class FacebookMessageFormatter
     {
         $text = $post->text;
 
-        // Убираем HTML теги, Facebook их не поддерживает в постах
+        // Remove HTML tags, Facebook doesn't support them in posts
         $text = strip_tags($text);
 
-        // Декодируем HTML entities
+        // Decode HTML entities
         $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
-        // Нормализуем переносы строк
+        // Normalize line breaks
         $text = preg_replace('/\r\n?/', "\n", $text);
 
-        // Убираем лишние пробелы и переносы
+        // Remove extra spaces and line breaks
         $text = preg_replace('/\n{3,}/', "\n\n", $text);
         $text = trim($text);
 
@@ -49,10 +49,10 @@ class FacebookMessageFormatter
             return $text;
         }
 
-        // Обрезаем с многоточием
+        // Truncate with ellipsis
         $truncated = mb_substr($text, 0, self::MAX_CAPTION_LENGTH - 3);
 
-        // Пытаемся обрезать по последнему слову
+        // Try to truncate at the last word
         $lastSpace = mb_strrpos($truncated, ' ');
         if ($lastSpace !== false && $lastSpace > self::MAX_CAPTION_LENGTH * 0.8) {
             $truncated = mb_substr($truncated, 0, $lastSpace);

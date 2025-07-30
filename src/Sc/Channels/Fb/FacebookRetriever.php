@@ -108,37 +108,37 @@ readonly class FacebookRetriever implements RetrieverInterface
         $photos = [];
         $videos = [];
 
-        // Обрабатываем изображения
+        // Process images
         if (!empty($fbPost['full_picture'])) {
             $photos[] = $fbPost['full_picture'];
         }
 
-        // Обрабатываем вложения
+        // Process attachments
         if (isset($fbPost['attachments']['data'])) {
             foreach ($fbPost['attachments']['data'] as $attachment) {
                 if (isset($attachment['media']['image']['src'])) {
                     $photos[] = $attachment['media']['image']['src'];
                 }
-                // Можно добавить обработку видео, если необходимо
+                // Video processing can be added if needed
             }
         }
 
-        // Убираем дубликаты фото
+        // Remove duplicate photos
         $photos = array_unique($photos);
 
-        // Создаем коллекцию ID
+        // Create ID collection
         $ids = new PostIdCollection([
             new PostId($postId, $this->systemName)
         ]);
 
-        // Создаем пост с правильными параметрами
+        // Create post with correct parameters
         $post = new Post(
             ids: $ids,
             text: $text,
             videos: $videos,
-            links: [], // Facebook API может предоставлять ссылки, но пока не обрабатываем
+            links: [], // Facebook API can provide links, but not processing them yet
             photos: $photos,
-            author: null, // Можно получить через дополнительный запрос
+            author: null, // Can be obtained via additional request
         );
 
         $this->logger->debug('Converted Facebook post', [

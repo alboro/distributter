@@ -109,7 +109,7 @@ class MadelineProtoFixer
         // Find all MadelineProto related processes
         $processes = shell_exec("ps aux | grep -E 'MadelineProto worker|entry.php.*madeline' | grep -v grep");
 
-        if (empty(trim($processes))) {
+        if (empty(trim($processes ?? ''))) {
             $this->logger->info('No hanging MadelineProto processes found');
             return;
         }
