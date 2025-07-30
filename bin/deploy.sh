@@ -181,7 +181,7 @@ main() {
     log "INFO" "Branch: $DEPLOY_BRANCH"
 
     case "${1:-deploy}" in
-        "force")
+        "deploy")
             check_ssh_connection
             deploy_to_server
             ;;
@@ -208,7 +208,7 @@ main() {
             echo "Usage: $0 [command]"
             echo ""
             echo "Commands:"
-            echo "  force    - Force deployment without confirmation"
+            echo "  deploy    - deploy deployment without confirmation"
             echo "  rollback - Rollback to previous version"
             echo "  status   - Show project status on server"
             echo "  logs     - Show application logs"
@@ -224,7 +224,7 @@ main() {
             echo "  SSH_KEY       - Path to SSH key (default: ~/.ssh/id_rsa)"
             echo ""
             echo "Example:"
-            echo "  DEPLOY_HOST=myserver.com DEPLOY_USER=deploy $0 force"
+            echo "  DEPLOY_HOST=myserver.com DEPLOY_USER=deploy $0 deploy"
             ;;
         *)
             log "ERROR" "Unknown command: $1"

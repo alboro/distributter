@@ -111,7 +111,7 @@ cp .env.example .env
 ### Production Deployment
 ```sh
 # Initial setup
-source deploy.conf && ./bin/deploy.sh force
+source deploy.conf && ./bin/deploy.sh deploy
 
 # Set up cron job for automatic synchronization
 # Add to crontab: */5 * * * * cd /var/www/distributter && php bin/distributter.php
@@ -144,8 +144,8 @@ php bin/auth-telegram.php
 
 ## Deploy
 ```sh
-# Force deployment without confirmation  
-source deploy.conf && ./bin/deploy.sh force
+# deployment without confirmation  
+source deploy.conf && ./bin/deploy.sh deploy
 
 # Rollback to previous version
 source deploy.conf && ./bin/deploy.sh rollback
