@@ -215,22 +215,25 @@ php bin/auth-telegram.php
 
 ## TODO
 * Split everything into separate processes by retrieving/sending/channel criteria. Use SymfonyMessager/SymfonyLocks. host process waits for child process to be finished. after timeout host process thows exception. 
-* vk is text (not quite, some kind of markdown), tg is html, reflect it in Post model
 * think about internal sender/retriever,
-* not all links are parsed from tg
+* tg:
+  * vk is text (not quite, some kind of markdown), tg is html, reflect it in Post model
+  * not all links are parsed from tg
+  * add special tags which define if to remove links or transform them into just text (tg supports html, vk - no)
+  * Add youtube support (tts+image+ffmpeg=video, being sent via api). TTS OR get audio from TG.
+  * Group retrieved posts from Telegram (see `src/Sc/Channels/Tg/TelegramRetriever.php:16`), use also tags or time as group criteria
+  * add tts audio to every post
+* VK:
+    * To parse `[id2911722|Alex Ivanov]` in a more correct way, transform internal feed links into links of appropriate channel
+    * Add polls support for VK sender (see `\Sc\Channels\Vk\VkSender::supportsPolls`)
 * now the new one is the one we don't know about. but when the third integration appears, refactoring will be necessary. the new one can only be defined relative to the specific system where we send it.
 * retrieve only new posts (check for existence in local storage, calc individual item count for each retriever)
-* Group retrieved posts from Telegram (see `src/Sc/Channels/Tg/TelegramRetriever.php:16`), use also tags or time as group criteria
-* add special tags which define if to remove links or transform them into just text (tg supports html, vk - no)
 * Add auto-tests and CI/CD pipeline
-* VK: To parse `[id2911722|Alex Ivanov]` in a more correct way, transform internal feed links into links of appropriate channel
 * Add system abstraction (e.g., tg2tg sync) and more flexibility via configs
 * Support for gradual synchronization of the old channel with the newer one. Individual limits for retrievers coordinated with this.
-* Add youtube support (tts+image+ffmpeg=video, being sent via api). TTS OR get audio from TG.
 * Add RSS support
 * Add Instagram support
 * Add Facebook support  
-* Add polls support for VK sender (see `\Sc\Channels\Vk\VkSender::supportsPolls`)
 
 ## License
 
