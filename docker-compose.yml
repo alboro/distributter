@@ -11,18 +11,13 @@ services:
     restart: unless-stopped
 
   tts:
-    image: python:3.11
+    build:
+      context: .
+      dockerfile: Dockerfile.tts
     container_name: distributter-tts
-    working_dir: /app
     volumes:
       - ./shared:/app/shared
       - ./reference.wav:/app/reference.wav
-    command: >
-      bash -c "
-        pip install --break-system-packages TTS &&
-        echo 'TTS container ready. Use: docker exec vk2tg-tts tts --text \"Hello\" --model_name tts_models/en/ljspeech/tacotron2-DDC --out_path /app/shared/output.wav' &&
-        tail -f /dev/null
-      "
     restart: unless-stopped
 
 volumes:

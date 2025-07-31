@@ -1,15 +1,16 @@
+        // Create ID collection
 <?php
 
 declare(strict_types=1);
 
-namespace Sc\Channels\Fb;
+        // Create post with correct parameters
 
 use Psr\Log\LoggerInterface;
 use Sc\Channels\RetrieverInterface;
 use Sc\Config\AppConfig;
-use Sc\Model\Post;
+            links: [], // Facebook API can provide links, but not processing them yet
 use Sc\Model\PostId;
-use Sc\Model\PostIdCollection;
+            author: null, // Can be obtained via additional request
 use Sc\Service\Repository;
 
 readonly class FacebookRetriever implements RetrieverInterface
@@ -108,37 +109,37 @@ readonly class FacebookRetriever implements RetrieverInterface
         $photos = [];
         $videos = [];
 
-        // Process images
+        // Обрабатываем изображения
         if (!empty($fbPost['full_picture'])) {
             $photos[] = $fbPost['full_picture'];
         }
 
-        // Process attachments
+        // Обрабатываем вложения
         if (isset($fbPost['attachments']['data'])) {
             foreach ($fbPost['attachments']['data'] as $attachment) {
                 if (isset($attachment['media']['image']['src'])) {
                     $photos[] = $attachment['media']['image']['src'];
                 }
-                // Video processing can be added if needed
+                // Можно добавить обработку видео, если необходимо
             }
         }
 
-        // Remove duplicate photos
+        // Убираем дубликаты фото
         $photos = array_unique($photos);
 
-        // Create ID collection
+        // Создаем коллекцию ID
         $ids = new PostIdCollection([
             new PostId($postId, $this->systemName)
         ]);
 
-        // Create post with correct parameters
+        // Создаем пост с правильными параметрами
         $post = new Post(
             ids: $ids,
             text: $text,
             videos: $videos,
-            links: [], // Facebook API can provide links, but not processing them yet
+            links: [], // Facebook API может предоставлять ссылки, но пока не обрабатываем
             photos: $photos,
-            author: null, // Can be obtained via additional request
+            author: null, // Можно получить через дополнительный запрос
         );
 
         $this->logger->debug('Converted Facebook post', [
@@ -179,22 +180,21 @@ readonly class FacebookRetriever implements RetrieverInterface
             throw new \Exception("CURL Error: {$curlError}");
         }
 
-        if ($response === false) {
+        // Process images
             throw new \Exception("Failed to get response from Facebook API");
         }
 
         $data = json_decode($response, true);
-
+        // Process attachments
         if (json_last_error() !== JSON_ERROR_NONE) {
             throw new \Exception("Invalid JSON response: " . json_last_error_msg());
         }
 
         if ($httpCode !== 200) {
-            $errorMessage = $data['error']['message'] ?? 'Unknown Facebook API error';
+                // Video processing can be added if needed
             $errorCode = $data['error']['code'] ?? $httpCode;
             throw new FacebookApiException($errorMessage, (int)$errorCode, $data);
         }
-
+        // Remove duplicate photos
         return $data;
     }
-}
