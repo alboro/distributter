@@ -19,17 +19,18 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 # Upgrade pip and install build tools
 RUN pip install --upgrade pip setuptools wheel
 
-# Install TTS and required dependencies
+# Install TTS and required dependencies with specific PyTorch version
 RUN pip install --break-system-packages \
-    TTS \
-    torch \
-    torchaudio \
-    numpy \
-    scipy \
-    pandas \
+    torch==2.4.0 \
+    torchaudio==2.4.0 \
+    "numpy>=1.24.0,<2.0.0" \
+    "scipy>=1.10.0" \
+    "pandas>=1.5.0,<2.0.0" \
+    "transformers>=4.33.0,<4.50.0" \
     spacy \
     gruut \
-    sudachipy
+    sudachipy \
+    TTS
 
 # Create shared directory
 RUN mkdir -p /app/shared

@@ -72,6 +72,10 @@ XTTS v2 is a powerful voice cloning model that supports 17 languages including R
 # Example with voice cloning
 tts --text "Это клонированный голос!" --model_name tts_models/multilingual/multi-dataset/xtts_v2 --language_idx ru --speaker_wav my_voice_sample.wav --out_path cloned_voice.wav
 ```
+from docker
+```angular2html
+docker exec distributter-tts bash -c "echo 'y' | tts --text \"\$(cat /app/shared/test.txt)\" --model_name tts_models/multilingual/multi-dataset/xtts_v2 --language_idx ru --speaker_wav /app/shared/reference.wav --out_path /app/shared/russian.wav"
+```
 
 ## Important points:
 

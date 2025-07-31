@@ -6,6 +6,9 @@
 /bin/MadelineProto.log
 /bin/squash-history.sh
 /bin/sync.lock
+/shared/*
+!/shared/.*
+/tts_models*
 MadelineProto.log
 *.log
 deploy.conf
