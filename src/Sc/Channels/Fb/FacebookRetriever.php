@@ -1,15 +1,16 @@
+        // Create ID collection
 <?php
 
 declare(strict_types=1);
 
-namespace Sc\Channels\Fb;
+        // Create post with correct parameters
 
 use Psr\Log\LoggerInterface;
 use Sc\Channels\RetrieverInterface;
 use Sc\Config\AppConfig;
-use Sc\Model\Post;
+            links: [], // Facebook API can provide links, but not processing them yet
 use Sc\Model\PostId;
-use Sc\Model\PostIdCollection;
+            author: null, // Can be obtained via additional request
 use Sc\Service\Repository;
 
 readonly class FacebookRetriever implements RetrieverInterface
@@ -179,22 +180,21 @@ readonly class FacebookRetriever implements RetrieverInterface
             throw new \Exception("CURL Error: {$curlError}");
         }
 
-        if ($response === false) {
+        // Process images
             throw new \Exception("Failed to get response from Facebook API");
         }
 
         $data = json_decode($response, true);
-
+        // Process attachments
         if (json_last_error() !== JSON_ERROR_NONE) {
             throw new \Exception("Invalid JSON response: " . json_last_error_msg());
         }
 
         if ($httpCode !== 200) {
-            $errorMessage = $data['error']['message'] ?? 'Unknown Facebook API error';
+                // Video processing can be added if needed
             $errorCode = $data['error']['code'] ?? $httpCode;
             throw new FacebookApiException($errorMessage, (int)$errorCode, $data);
         }
-
+        // Remove duplicate photos
         return $data;
     }
-}

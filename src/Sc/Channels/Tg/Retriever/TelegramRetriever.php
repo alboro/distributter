@@ -49,6 +49,12 @@ readonly class TelegramRetriever implements RetrieverInterface
             return [];
         }
 
+        // Check MadelineProto health before attempting to retrieve posts
+        if (!$this->fixer->isHealthy()) {
+            $this->logger->warning('MadelineProto health check failed, attempting to fix issues');
+            $this->fixer->fixIssues();
+        }
+
         try {
             $messages = $this->fetchTelegramMessages();
             return $this->processTelegramMessages($messages);
@@ -57,7 +63,109 @@ readonly class TelegramRetriever implements RetrieverInterface
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
+
+            // Check if this is a "Too many open files" or similar MadelineProto issue
+            if ($this->isMadelineProtoIssue($e)) {
+                $this->logger->info('Detected MadelineProto issue, attempting automatic fix');
+
+                if ($this->fixer->fixIssues()) {
+                    $this->logger->info('Auto-fix successful, retrying message retrieval');
+
+                    // For "channel already closed" errors, we need to wait a bit longer for IPC to stabilize
+                    if (strpos($e->getMessage(), 'The channel was already closed') !== false) {
+                        $this->logger->info('Waiting for IPC channel to stabilize after fix...');
+                        sleep(3); // Give MadelineProto time to restart IPC server
+                    }
+
+                    try {
+                        $messages = $this->fetchTelegramMessages();
+                        return $this->processTelegramMessages($messages);
+                    } catch (\Throwable $retryError) {
+                        // If we still get "channel closed" error, it means IPC needs more time
+                        if (strpos($retryError->getMessage(), 'The channel was already closed') !== false) {
+                            $this->logger->warning('IPC channel still not ready, skipping Telegram retrieval this time');
+                            return []; // Return empty array instead of failing
+                        }
+
+                        $this->logger->error('Failed to retrieve messages even after auto-fix', [
+                            'error' => $retryError->getMessage()
+                        ]);
+                    }
+                }
+            }
+
             return [];
+        }
+    }
+
+    /**
+     * Check if the exception is related to MadelineProto issues
+     */
+    private function isMadelineProtoIssue(\Throwable $e): bool
+    {
+        $message = $e->getMessage();
+        $madelineProtoErrors = [
+            'Too many open files',
+            'Could not connect to MadelineProto',
+            'Failed to write to stream',
+            'Broken pipe',
+            'Sending on the channel failed',
+            'The channel was already closed',
+            'fopen(): Failed to open stream: Too many open files',
+            'include(): Failed to open stream: Too many open files'
+        ];
+
+        foreach ($madelineProtoErrors as $error) {
+            if (strpos($message, $error) !== false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Recreate MadelineProto API instance after fixing issues
+     */
+    private function recreateMadelineProtoApi(): void
+    {
+        try {
+            $this->logger->info('Recreating MadelineProto API instance after fix');
+
+            // Import settings from the current instance if possible
+            $settings = new \danog\MadelineProto\Settings();
+            $settings->getAppInfo()->setApiId((int) $this->config->tgRetrieverConfig->apiId);
+            $settings->getAppInfo()->setApiHash($this->config->tgRetrieverConfig->apiHash);
+
+            // Use the same aggressive timeouts
+            $settings->getConnection()->setTimeout(10.0);
+            $settings->getRpc()->setRpcDropTimeout(15);
+            $settings->getRpc()->setFloodTimeout(10);
+            $settings->getConnection()->setRetry(false);
+            $settings->getConnection()->setPingInterval(30);
+
+            // Disable verbose logging
+            $settings->getLogger()->setType(\danog\MadelineProto\Logger::ECHO_LOGGER);
+            $settings->getLogger()->setLevel(\danog\MadelineProto\Logger::LEVEL_FATAL);
+
+            // Create new API instance
+            $newApi = new \danog\MadelineProto\API($this->config->tgRetrieverConfig->sessionFile, $settings);
+
+            // Test the connection
+            $newApi->start();
+            $self = $newApi->getSelf();
+
+            if (!empty($self)) {
+                // Replace the broken instance with the new one
+                $this->madelineProto = $newApi;
+                $this->logger->info('✅ Successfully recreated MadelineProto API');
+            } else {
+                throw new \Exception('Failed to authorize new API instance');
+            }
+
+        } catch (\Throwable $e) {
+            $this->logger->error('Failed to recreate MadelineProto API: ' . $e->getMessage());
+            throw $e;
         }
     }
 
@@ -68,11 +176,8 @@ readonly class TelegramRetriever implements RetrieverInterface
             return $this->getHistory();
 
         } catch (\Throwable $e) {
-            return $this->fixer->run(
-                $e,
-                fn () => $this->getHistory(),
-                fn (\Throwable $throwable) => $this->handlePeerDatabaseException($throwable)
-            );
+            // Handle peer database exceptions specifically
+            return $this->handlePeerDatabaseException($e);
         }
     }
 

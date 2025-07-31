@@ -104,180 +104,358 @@ class MadelineProtoFixer
             return;
         }
 
-        $this->logger->info('Checking for hanging MadelineProto processes');
+        $this->logger->info('🔍 Checking for hanging MadelineProto processes');
 
-        // Find MadelineProto processes
-        $processes = shell_exec("ps aux | grep -E '(madeline-ipc|MadelineProto)' | grep -v grep | awk '{print $2}' || true");
+        // Find all MadelineProto related processes
+        $processes = shell_exec("ps aux | grep -E 'MadelineProto worker|entry.php.*madeline' | grep -v grep");
 
-        if (empty(trim($processes))) {
+        if (empty(trim($processes ?? ''))) {
             $this->logger->info('No hanging MadelineProto processes found');
             return;
         }
 
-        $pids = array_filter(explode("\n", trim($processes)));
-        $this->logger->warning('Found hanging MadelineProto processes: ' . implode(', ', $pids));
+        $this->logger->info('Found hanging MadelineProto processes:');
+        $this->logger->info($processes);
 
-        // Try graceful termination first
-        foreach ($pids as $pid) {
-            if (is_numeric($pid)) {
-                posix_kill((int)$pid, SIGTERM);
-            }
+        // Kill MadelineProto worker processes
+        $killedWorkers = shell_exec("pkill -f 'MadelineProto worker' 2>/dev/null; echo $?");
+        if (trim($killedWorkers ?? '') === '0') {
+            $this->logger->info('✅ Killed MadelineProto worker processes');
         }
 
-        sleep(3);
-
-        // Force kill if still running
-        $remainingProcesses = shell_exec("ps aux | grep -E '(madeline-ipc|MadelineProto)' | grep -v grep | awk '{print $2}' || true");
-        if (!empty(trim($remainingProcesses))) {
-            $remainingPids = array_filter(explode("\n", trim($remainingProcesses)));
-            $this->logger->warning('Force killing remaining processes: ' . implode(', ', $remainingPids));
-
-            foreach ($remainingPids as $pid) {
-                if (is_numeric($pid)) {
-                    posix_kill((int)$pid, SIGKILL);
-                }
-            }
+        // Kill entry.php processes
+        $killedEntry = shell_exec("pkill -f 'entry.php.*madeline' 2>/dev/null; echo $?");
+        if (trim($killedEntry ?? '') === '0') {
+            $this->logger->info('✅ Killed MadelineProto entry processes');
         }
 
-        $this->logger->info('Cleaned up hanging processes');
+        // Wait a moment for processes to terminate
+        sleep(2);
+
+        // Force kill any remaining processes
+        $remainingProcesses = shell_exec("ps aux | grep -E 'MadelineProto worker|entry.php.*madeline' | grep -v grep");
+        if (!empty($remainingProcesses) && !empty(trim($remainingProcesses))) {
+            $this->logger->warning('Some processes still running, force killing...');
+            shell_exec("pkill -9 -f 'MadelineProto worker' 2>/dev/null");
+            shell_exec("pkill -9 -f 'entry.php.*madeline' 2>/dev/null");
+            $this->logger->info('✅ Force killed remaining processes');
+        }
     }
 
     /**
-     * Clean up corrupted session files
+     * Clean up MadelineProto session files
      */
     private function cleanupSessionFiles(): void
     {
-        $this->logger->info('Cleaning up MadelineProto session files');
+        $this->logger->info('🧹 Cleaning up MadelineProto session files');
 
-        $sessionDirs = [$this->sessionPath];
-        $cleanedCount = 0;
+        $sessionDir = $this->sessionPath;
+        if (!is_dir($sessionDir)) {
+            $this->logger->info("Session directory doesn't exist: $sessionDir");
+            return;
+        }
 
-        foreach ($sessionDirs as $sessionDir) {
-            if (!is_dir($sessionDir)) {
-                continue;
-            }
+        // Fix permissions first
+        $this->fixSessionPermissions();
 
-            $this->logger->debug("Cleaning session directory: $sessionDir");
+        // Get current user info for file ownership checks
+        $currentUid = getmyuid();
 
-            // Files that commonly cause issues
-            $problematicFiles = [
-                'ipc',
-                'callback.ipc',
-                'lock'
-            ];
+        $filesToClean = [
+            'ipcState.php.lock',
+            'lightState.php.lock',
+            'safe.php.lock',
+            'lock',
+            'callback.ipc',
+            'ipc'
+        ];
 
-            foreach ($problematicFiles as $file) {
-                $filePath = $sessionDir . '/' . $file;
-                if (file_exists($filePath)) {
-                    unlink($filePath);
-                    $cleanedCount++;
-                    $this->logger->debug("Removed: $filePath");
+        $cleanedFiles = 0;
+        foreach ($filesToClean as $file) {
+            $fullPath = $sessionDir . '/' . $file;
+            if (file_exists($fullPath)) {
+                // Check if file is owned by different user (likely root)
+                $fileInfo = stat($fullPath);
+                if ($fileInfo && $fileInfo['uid'] !== $currentUid) {
+                    $this->logger->warning("Lock file $file is owned by UID {$fileInfo['uid']}, attempting forced removal");
+
+                    // Try to remove using sudo if available
+                    if (function_exists('shell_exec')) {
+                        $result = shell_exec("sudo rm -f " . escapeshellarg($fullPath) . " 2>&1");
+                        if (!file_exists($fullPath)) {
+                            $this->logger->info("✅ Successfully removed with sudo: $file");
+                            $cleanedFiles++;
+                            continue;
+                        } else {
+                            $this->logger->warning("Failed to remove with sudo: $file - $result");
+                        }
+                    }
                 }
-            }
 
-            // Remove all .lock files
-            $lockFiles = glob($sessionDir . '/*.lock');
-            foreach ($lockFiles as $lockFile) {
-                if (file_exists($lockFile)) {
-                    unlink($lockFile);
-                    $cleanedCount++;
-                    $this->logger->debug("Removed: $lockFile");
+                // Try normal removal
+                if (unlink($fullPath)) {
+                    $this->logger->info("✅ Removed: $file");
+                    $cleanedFiles++;
+                } else {
+                    $this->logger->warning("❌ Failed to remove: $file");
                 }
             }
         }
 
-        $this->logger->info("Cleaned up $cleanedCount session files");
+        // Clean up any ipc* files
+        $ipcFiles = glob($sessionDir . '/ipc*');
+        foreach ($ipcFiles as $ipcFile) {
+            if (unlink($ipcFile)) {
+                $this->logger->info("✅ Removed: " . basename($ipcFile));
+                $cleanedFiles++;
+            }
+        }
+
+        if ($cleanedFiles > 0) {
+            $this->logger->info("✅ Cleaned up $cleanedFiles session files");
+        } else {
+            $this->logger->info('No session files needed cleaning');
+        }
+
+        // Fix permissions again after cleanup
+        $this->fixSessionPermissions();
     }
 
     /**
-     * Check PHP configuration for MadelineProto compatibility
+     * Fix permissions on session files
+     */
+    private function fixSessionPermissions(): void
+    {
+        if (!is_dir($this->sessionPath)) {
+            return;
+        }
+
+        $this->logger->info('🔧 Fixing session file permissions');
+
+        // Get current user info
+        $currentUser = get_current_user();
+        $currentUid = getmyuid();
+        $currentGid = getmygid();
+
+        $this->logger->debug("Current user: $currentUser (UID: $currentUid, GID: $currentGid)");
+
+        try {
+            // Fix directory permissions
+            if (!is_writable($this->sessionPath)) {
+                if (function_exists('shell_exec')) {
+                    // Try to fix ownership using sudo if needed
+                    $result = shell_exec("ls -la " . escapeshellarg($this->sessionPath) . "/../ | grep " . basename($this->sessionPath));
+                    $this->logger->debug("Session directory permissions: $result");
+
+                    // Check if directory is owned by root or different user
+                    if (strpos($result, 'root') !== false) {
+                        $this->logger->warning('Session directory is owned by root, attempting to fix');
+
+                        // Try to change ownership to current user
+                        $chownResult = shell_exec("sudo chown -R $currentUser:$currentUser " . escapeshellarg($this->sessionPath) . " 2>&1");
+                        if ($chownResult) {
+                            $this->logger->info("Changed ownership result: $chownResult");
+                        }
+                    }
+                }
+
+                // Try to make directory writable
+                chmod($this->sessionPath, 0755);
+            }
+
+            // Fix permissions on all files in session directory
+            $files = scandir($this->sessionPath);
+            foreach ($files as $file) {
+                if ($file === '.' || $file === '..') {
+                    continue;
+                }
+
+                $fullPath = $this->sessionPath . '/' . $file;
+
+                if (is_file($fullPath)) {
+                    // Check current owner
+                    $fileInfo = stat($fullPath);
+                    if ($fileInfo && $fileInfo['uid'] !== $currentUid) {
+                        $this->logger->warning("File $file is owned by UID {$fileInfo['uid']}, trying to fix");
+
+                        if (function_exists('shell_exec')) {
+                            shell_exec("sudo chown $currentUser:$currentUser " . escapeshellarg($fullPath) . " 2>/dev/null");
+                        }
+                    }
+
+                    // Make file readable and writable by owner
+                    if (!is_writable($fullPath)) {
+                        chmod($fullPath, 0644);
+                        $this->logger->debug("Fixed permissions for: $file");
+                    }
+                }
+            }
+
+            $this->logger->info('✅ Session file permissions fixed');
+
+        } catch (\Throwable $e) {
+            $this->logger->warning('Failed to fix some permissions: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Check PHP configuration for MadelineProto requirements
      */
     private function checkPhpConfiguration(): void
     {
-        $this->logger->info('Checking PHP configuration');
+        $this->logger->info('⚙️ Checking PHP configuration');
 
-        // Check proc_open
-        if (!function_exists('proc_open')) {
-            $this->logger->error('proc_open function is disabled. MadelineProto requires proc_open to work.');
-            $this->logger->error('Please enable proc_open in php.ini by removing it from disable_functions');
-            throw new \RuntimeException('proc_open is disabled');
-        } else {
-            $this->logger->info('proc_open function is available');
-        }
+        $requiredExtensions = ['curl', 'mbstring', 'xml', 'json', 'openssl', 'pcntl'];
+        $missingExtensions = [];
 
-        // Check open_basedir
-        $openBasedir = ini_get('open_basedir');
-        if (!empty($openBasedir)) {
-            $this->logger->warning("open_basedir is set: $openBasedir");
-            $this->logger->warning('This might cause issues with MadelineProto');
-        } else {
-            $this->logger->info('open_basedir is not restricting access');
-        }
-
-        // Check memory limit
-        $memoryLimit = ini_get('memory_limit');
-        $this->logger->info("PHP memory limit: $memoryLimit");
-
-        // Check max execution time
-        $maxExecutionTime = ini_get('max_execution_time');
-        $this->logger->info("PHP max execution time: $maxExecutionTime");
-    }
-
-    /**
-     * Check if the exception is a MadelineProto IPC issue
-     */
-    public function run(\Throwable $e, ?Callable $success = null, ?Callable $fail = null): mixed
-    {
-        $success = null === $success ? fn () => null : $success;
-        $fail = null === $fail ? fn (\Throwable $e) => throw $e : $fail;
-
-        if (self::isMadelineProtoIpcException($e)) {
-            $this->logger->warning('Detected MadelineProto IPC issue, attempting automatic fix', [
-                'error' => $e->getMessage()
-            ]);
-
-            // Try to automatically fix the issue
-            if ($this->fixIssues()) {
-                $this->logger->info('MadelineProto issues fixed, retrying operation');
-
-                // Give some time for restart after fix
-                sleep(3);
-
-                try {
-                    // Retry after fix
-                    $response = $success();
-
-                    $this->logger->info('Successfully retried after MadelineProto fix');
-                    return $response;
-
-                } catch (\Throwable $retryError) {
-                    $this->logger->error('Still failing after MadelineProto fix attempt', [
-                        'original_error' => $e->getMessage(),
-                        'retry_error' => $retryError->getMessage()
-                    ]);
-
-                    // If this is still a peer issue, handle as usual
-                    return $fail($retryError);
-                }
-            } else {
-                $this->logger->error('Failed to automatically fix MadelineProto issues');
+        foreach ($requiredExtensions as $ext) {
+            if (!extension_loaded($ext)) {
+                $missingExtensions[] = $ext;
             }
         }
 
-        return $fail($e);
+        if (!empty($missingExtensions)) {
+            $this->logger->error('❌ Missing PHP extensions: ' . implode(', ', $missingExtensions));
+        } else {
+            $this->logger->info('✅ All required PHP extensions are loaded');
+        }
+
+        // Check important PHP settings
+        $memoryLimit = ini_get('memory_limit');
+        $maxExecutionTime = ini_get('max_execution_time');
+
+        $this->logger->info("Memory limit: $memoryLimit");
+        $this->logger->info("Max execution time: $maxExecutionTime");
+
+        // Check if proc_open is available (required by MadelineProto)
+        if (!function_exists('proc_open')) {
+            $this->logger->error('❌ proc_open function is disabled - required by MadelineProto');
+        } else {
+            $this->logger->info('✅ proc_open function is available');
+        }
+
+        // Check open_basedir restriction
+        $openBasedir = ini_get('open_basedir');
+        if (!empty($openBasedir)) {
+            $this->logger->warning("⚠️ open_basedir restriction is set: $openBasedir");
+            $this->logger->warning('This may cause MadelineProto issues');
+        } else {
+            $this->logger->info('✅ No open_basedir restrictions');
+        }
     }
 
     /**
-     * Check if the exception is a MadelineProto IPC issue
+     * Check if MadelineProto is currently running properly
      */
-    public static function isMadelineProtoIpcException(\Throwable $exception): bool
+    public function isHealthy(): bool
     {
-        $message = $exception->getMessage();
+        // Check for hanging processes
+        if (function_exists('shell_exec')) {
+            $processes = shell_exec("ps aux | grep -E 'MadelineProto worker|entry.php.*madeline' | grep -v grep | wc -l");
+            $processCount = (int) trim($processes);
 
-        return str_contains($message, 'Could not connect to MadelineProto') ||
-               str_contains($message, 'Too many open files') ||
-               str_contains($message, 'IPC server') ||
-               str_contains($message, 'proc_open') ||
-               str_contains($message, 'open_basedir');
+            if ($processCount > 2) { // More than expected processes
+                $this->logger->warning("Too many MadelineProto processes running: $processCount");
+                return false;
+            }
+        }
+
+        // Check for lock files that might indicate issues
+        $problemFiles = [
+            $this->sessionPath . '/ipcState.php.lock',
+            $this->sessionPath . '/lightState.php.lock',
+            $this->sessionPath . '/safe.php.lock'
+        ];
+
+        foreach ($problemFiles as $file) {
+            if (file_exists($file)) {
+                // Check if lock file is stale (older than 5 minutes)
+                $age = time() - filemtime($file);
+                if ($age > 300) {
+                    $this->logger->warning("Stale lock file detected: " . basename($file) . " (age: {$age}s)");
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Perform preventive maintenance
+     */
+    public function performMaintenance(): void
+    {
+        $this->logger->info('🔧 Performing MadelineProto maintenance');
+
+        // Clean up old log files if they're too large
+        $logFile = $this->projectRoot . '/bin/MadelineProto.log';
+        if (file_exists($logFile)) {
+            $size = filesize($logFile);
+            $maxSize = 50 * 1024 * 1024; // 50MB
+
+            if ($size > $maxSize) {
+                $this->logger->info("MadelineProto.log is large ({$size} bytes), truncating...");
+
+                // Keep last 1000 lines
+                $lines = file($logFile);
+                if ($lines && count($lines) > 1000) {
+                    $keepLines = array_slice($lines, -1000);
+                    file_put_contents($logFile, implode('', $keepLines));
+                    $this->logger->info('✅ Truncated MadelineProto.log');
+                }
+            }
+        }
+
+        // Check system resources
+        if (function_exists('shell_exec')) {
+            $openFiles = shell_exec("lsof | wc -l 2>/dev/null");
+            if ($openFiles) {
+                $this->logger->info("Current open files: " . trim($openFiles));
+            }
+        }
+    }
+
+    /**
+     * Get diagnostic information
+     */
+    public function getDiagnostics(): array
+    {
+        $diagnostics = [
+            'timestamp' => date('Y-m-d H:i:s'),
+            'session_path' => $this->sessionPath,
+            'session_exists' => is_dir($this->sessionPath),
+            'php_version' => PHP_VERSION,
+            'memory_limit' => ini_get('memory_limit'),
+            'max_execution_time' => ini_get('max_execution_time'),
+            'proc_open_available' => function_exists('proc_open'),
+            'shell_exec_available' => function_exists('shell_exec'),
+            'open_basedir' => ini_get('open_basedir'),
+        ];
+
+        if (function_exists('shell_exec')) {
+            $diagnostics['file_descriptor_limit'] = (int) shell_exec('ulimit -n 2>/dev/null');
+            $diagnostics['madeline_processes'] = trim(shell_exec("ps aux | grep -E 'MadelineProto worker|entry.php.*madeline' | grep -v grep | wc -l"));
+            $diagnostics['open_files_count'] = trim(shell_exec("lsof | wc -l 2>/dev/null"));
+        }
+
+        // Check session files
+        $sessionFiles = [];
+        if (is_dir($this->sessionPath)) {
+            $files = scandir($this->sessionPath);
+            foreach ($files as $file) {
+                if ($file !== '.' && $file !== '..') {
+                    $fullPath = $this->sessionPath . '/' . $file;
+                    $sessionFiles[$file] = [
+                        'exists' => file_exists($fullPath),
+                        'size' => file_exists($fullPath) ? filesize($fullPath) : 0,
+                        'modified' => file_exists($fullPath) ? date('Y-m-d H:i:s', filemtime($fullPath)) : null
+                    ];
+                }
+            }
+        }
+        $diagnostics['session_files'] = $sessionFiles;
+
+        return $diagnostics;
     }
 }
