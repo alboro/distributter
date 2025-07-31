@@ -8,7 +8,6 @@ services:
       - ./storage.v3.json:/app/storage.v3.json
       - ./session.madeline:/app/session.madeline
       - ./shared:/app/shared
-      - ./tts_models:/root/.local/share/tts
     restart: unless-stopped
 
   tts:
@@ -18,6 +17,7 @@ services:
     container_name: distributter-tts
     volumes:
       - ./shared:/app/shared
+      - ./tts_models:/root/.local/share/tts
     restart: unless-stopped
 
 volumes:
