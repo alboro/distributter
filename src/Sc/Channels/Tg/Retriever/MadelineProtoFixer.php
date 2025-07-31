@@ -134,7 +134,7 @@ class MadelineProtoFixer
 
         // Force kill any remaining processes
         $remainingProcesses = shell_exec("ps aux | grep -E 'MadelineProto worker|entry.php.*madeline' | grep -v grep");
-        if (!empty(trim($remainingProcesses))) {
+        if (!empty($remainingProcesses) && !empty(trim($remainingProcesses))) {
             $this->logger->warning('Some processes still running, force killing...');
             shell_exec("pkill -9 -f 'MadelineProto worker' 2>/dev/null");
             shell_exec("pkill -9 -f 'entry.php.*madeline' 2>/dev/null");
