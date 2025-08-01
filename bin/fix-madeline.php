@@ -14,7 +14,7 @@ $logger = new Logger('madeline-fixer');
 $logger->pushHandler(new StreamHandler('php://stdout', Logger::DEBUG));
 
 // Session path
-$sessionPath = __DIR__ . '/session.madeline';
+$sessionPath = __DIR__ . '/session.madeline'; // @todo: take from env
 
 // Create fixer instance
 $fixer = new MadelineProtoFixer($logger, $sessionPath);

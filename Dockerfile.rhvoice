@@ -1,0 +1,118 @@
+FROM ubuntu:20.04
+
+# Отключаем интерактивные вопросы apt
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Устанавливаем зависимости
+RUN apt-get update && \
+    apt-get install -y \
+        wget \
+        curl \
+        sox \
+        ffmpeg \
+        python3 \
+        python3-pip \
+        espeak \
+        espeak-data \
+        festival \
+        festvox-ru \
+    && apt-get clean
+
+# Устанавливаем Python TTS библиотеки (главное - gTTS)
+RUN pip3 install gTTS pyttsx3
+
+# Создаем улучшенный скрипт для генерации речи
+RUN echo '#!/bin/bash\n\
+if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then\n\
+  echo "Usage: quick-tts [OPTIONS] TEXT OUTPUT_FILE"\n\
+  echo "  --voice VOICE    Voice engine: gtts, festival, espeak (default: gtts)"\n\
+  echo "  --speed SPEED    Speech speed for espeak (default: 150)"\n\
+  echo "  --lang LANG      Language code (default: ru)"\n\
+  echo "  TEXT             Text to synthesize"\n\
+  echo "  OUTPUT_FILE      Output WAV file"\n\
+  exit 0\n\
+fi\n\
+\n\
+VOICE="gtts"\n\
+SPEED="150"\n\
+LANG="ru"\n\
+TEXT=""\n\
+OUTPUT=""\n\
+\n\
+while [[ $# -gt 0 ]]; do\n\
+  case $1 in\n\
+    --voice|-v)\n\
+      VOICE="$2"\n\
+      shift 2\n\
+      ;;\n\
+    --speed|-s)\n\
+      SPEED="$2"\n\
+      shift 2\n\
+      ;;\n\
+    --lang|-l)\n\
+      LANG="$2"\n\
+      shift 2\n\
+      ;;\n\
+    *)\n\
+      if [ -z "$TEXT" ]; then\n\
+        TEXT="$1"\n\
+      elif [ -z "$OUTPUT" ]; then\n\
+        OUTPUT="$1"\n\
+      fi\n\
+      shift\n\
+      ;;\n\
+  esac\n\
+done\n\
+\n\
+if [ -z "$TEXT" ] || [ -z "$OUTPUT" ]; then\n\
+  echo "Error: TEXT and OUTPUT_FILE are required"\n\
+  exit 1\n\
+fi\n\
+\n\
+case $VOICE in\n\
+  gtts)\n\
+    # Google TTS через gTTS (лучше всего для русского)\n\
+    python3 -c "\n\
+from gtts import gTTS\n\
+import os\n\
+try:\n\
+    tts = gTTS(text='"'"'$TEXT'"'"', lang='"'"'$LANG'"'"', slow=False)\n\
+    tts.save('"'"'/tmp/temp.mp3'"'"')\n\
+    os.system('"'"'ffmpeg -i /tmp/temp.mp3 -ar 22050 -ac 1 $OUTPUT -y 2>/dev/null'"'"')\n\
+    if os.path.exists('"'"'/tmp/temp.mp3'"'"'):\n\
+        os.remove('"'"'/tmp/temp.mp3'"'"')\n\
+    print('"'"'✅ gTTS: Audio generated successfully'"'"')\n\
+except Exception as e:\n\
+    print(f'"'"'❌ gTTS Error: {e}'"'"')\n\
+    exit(1)\n\
+"\n\
+    ;;\n\
+  festival)\n\
+    # Festival TTS\n\
+    echo "$TEXT" | festival --tts --language russian > "$OUTPUT" 2>/dev/null || echo "❌ Festival failed"\n\
+    ;;\n\
+  espeak)\n\
+    # Espeak TTS\n\
+    espeak -v ru -s $SPEED -w "$OUTPUT" "$TEXT" && echo "✅ Espeak: Audio generated"\n\
+    ;;\n\
+  *)\n\
+    echo "Unknown voice engine: $VOICE"\n\
+    exit 1\n\
+    ;;\n\
+esac\n\
+\n\
+# Проверяем, создался ли файл и не пустой ли он\n\
+if [ ! -f "$OUTPUT" ] || [ ! -s "$OUTPUT" ]; then\n\
+  echo "⚠️ Warning: Failed to create audio with $VOICE, trying fallback (espeak)..."\n\
+  espeak -v ru -s $SPEED -w "$OUTPUT" "$TEXT" 2>/dev/null\n\
+  if [ -f "$OUTPUT" ] && [ -s "$OUTPUT" ]; then\n\
+    echo "✅ Fallback successful"\n\
+  else\n\
+    echo "❌ All TTS methods failed"\n\
+    exit 1\n\
+  fi\n\
+fi\n\
+' > /usr/local/bin/quick-tts && chmod +x /usr/local/bin/quick-tts
+
+WORKDIR /app
+CMD ["tail", "-f", "/dev/null"]

@@ -20,5 +20,15 @@ services:
       - ./tts_models:/root/.local/share/tts
     restart: unless-stopped
 
+  rhvoice:
+    build:
+      context: .
+      dockerfile: Dockerfile.rhvoice
+    container_name: distributter-rhvoice
+    volumes:
+      - ./shared:/app/shared
+      - ./tts_models:/root/.local/share/tts
+    restart: unless-stopped
+
 volumes:
   shared:
