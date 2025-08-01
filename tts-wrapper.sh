@@ -8,6 +8,7 @@ TEXT=""
 OUTPUT=""
 REFERENCE=""
 VOICE_ENGINE="gtts"  # По умолчанию используем Google TTS для быстрого режима
+USE_ACCENTS=true     # По умолчанию используем ударения для качественного TTS
 
 # Парсим аргументы
 while [[ $# -gt 0 ]]; do
@@ -24,6 +25,10 @@ while [[ $# -gt 0 ]]; do
       VOICE_ENGINE="$2"
       shift 2
       ;;
+    --no-accents)
+      USE_ACCENTS=false
+      shift
+      ;;
     --help|-h)
       echo "TTS Wrapper Script"
       echo "Usage: $0 [OPTIONS] TEXT OUTPUT_FILE [REFERENCE_VOICE]"
@@ -32,12 +37,14 @@ while [[ $# -gt 0 ]]; do
       echo "  --fast, -f           Use fast TTS (Google TTS by default)"
       echo "  --quality, -q        Use quality TTS (Coqui XTTS v2)"
       echo "  --voice ENGINE, -v   Fast TTS engine: gtts, festival, espeak, pyttsx3"
+      echo "  --no-accents         Disable automatic accent placement for quality TTS"
       echo "  --help, -h           Show this help"
       echo ""
       echo "Examples:"
       echo "  $0 --fast \"Привет мир\" output.wav"
       echo "  $0 --fast --voice festival \"Привет мир\" output.wav"
-      echo "  $0 --quality \"Привет мир\" output.wav reference.wav"
+      echo "  $0 --quality \"Молоко в стакане\" output.wav reference.wav"
+      echo "  $0 --quality --no-accents \"Текст без ударений\" output.wav reference.wav"
       exit 0
       ;;
     *)
@@ -71,10 +78,27 @@ else
     exit 1
   fi
 
-  # Создаем временный файл с текстом
-  echo "$TEXT" > "/Users/aldem/PhpstormProjects/vk2tg/shared/temp_text.txt"
+  # Обрабатываем текст для качественного TTS
+  PROCESSED_TEXT="$TEXT"
 
-  # Запускаем Coqui TTS
+  if [ "$USE_ACCENTS" = true ]; then
+    echo "📝 Processing text with accent placement..."
+
+    # Обрабатываем текст через my_ruaccent
+    PROCESSED_TEXT=$(docker exec distributter-tts my_ruaccent "$TEXT")
+
+    if [ $? -eq 0 ] && [ -n "$PROCESSED_TEXT" ]; then
+      echo "✅ Accents placed: $PROCESSED_TEXT"
+    else
+      echo "⚠️ Accent placement failed, using original text"
+      PROCESSED_TEXT="$TEXT"
+    fi
+  fi
+
+  # Создаем временный файл с обработанным текстом
+  echo "$PROCESSED_TEXT" > "/Users/aldem/PhpstormProjects/vk2tg/shared/temp_text.txt"
+
+  # Запускаем Coqui TTS с обработанным текстом
   docker exec distributter-tts bash -c "echo 'y' | tts --text \"\$(cat /app/shared/temp_text.txt)\" --model_name tts_models/multilingual/multi-dataset/xtts_v2 --language_idx ru --speaker_wav /app/shared/$REFERENCE --out_path /app/shared/$OUTPUT"
 
   # Удаляем временный файл

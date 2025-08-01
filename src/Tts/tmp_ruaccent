@@ -1,0 +1,33 @@
+aldem@AleksandrssMBP2 vk2tg % docker exec distributter-tts python3 -c "
+dquote> from ruaccent import RUAccent
+dquote> import inspect
+dquote> # Проверим signature конструктора
+dquote> try:
+dquote>     sig = inspect.signature(RUAccent.__init__)
+dquote>     print(f'RUAccent.__init__ signature: {sig}')
+dquote> except Exception as e:
+dquote>     print(f'Cannot get signature: {e}')
+dquote> # Попробуем разные способы инициализации
+dquote> try:
+dquote>     print('\\nTrying RUAccent() with explicit load...')
+dquote>     accentizer = RUAccent()
+dquote>     print('Created instance, trying explicit load...')
+dquote>     accentizer.load()
+dquote>     print('Model loaded, testing...')
+dquote>     text = 'молоко'
+dquote>     result = accentizer.process_all(text)
+dquote>     print(f'SUCCESS: {text} -> {result}')
+dquote> except Exception as e:
+dquote>     print(f'Error: {e}')
+dquote>     import traceback
+dquote>     traceback.print_exc()
+dquote> "
+/usr/local/lib/python3.11/site-packages/huggingface_hub/file_download.py:982: UserWarning: `local_dir_use_symlinks` parameter is deprecated and will be ignored. The process to download files to a local folder has been updated and do not rely on symlinks anymore. You only need to pass a destination folder as`local_dir`.
+For more details, check out https://huggingface.co/docs/huggingface_hub/main/en/guides/download#download-files-to-local-folder.
+  warnings.warn(
+RUAccent.__init__ signature: (self)
+
+Trying RUAccent() with explicit load...
+Created instance, trying explicit load...
+Model loaded, testing...
+SUCCESS: молоко -> молок+о
