@@ -223,10 +223,8 @@ php bin/auth-telegram.php
 * think about internal sender/retriever,
 * tg:
   * not all links are parsed from tg
-  * add tts audio to every post
   * vk is text (not quite, some kind of markdown), tg is html, reflect it in Post model
   * add special tags which define if to remove links or transform them into just text (tg supports html, vk - no)
-  * Add youtube support (tts+image+ffmpeg=video, being sent via api). TTS OR get audio from TG.
   * Group retrieved posts from Telegram (see `src/Sc/Channels/Tg/TelegramRetriever.php:16`), use also tags or time as group criteria
 * VK:
     * To parse `[id2911722|Alex Ivanov]` in a more correct way, transform internal feed links into links of appropriate channel
@@ -235,6 +233,9 @@ php bin/auth-telegram.php
 * retrieve only new posts (check for existence in local storage, calc individual item count for each retriever)
 * Add auto-tests and CI/CD pipeline
 * Support for gradual synchronization of the old channel with the newer one. Individual limits for retrievers coordinated with this.
+* tts: try https://github.com/coqui-ai/STT-models
+  * Add Youtube support (tts+image+ffmpeg=video, being sent via api). TTS OR get audio from TG.
+  * add tts audio to every TG post
 * Add RSS support
 * Add Instagram support
 * Add Facebook support  
