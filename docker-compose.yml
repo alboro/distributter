@@ -2,7 +2,9 @@ version: '3.8'
 
 services:
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
     container_name: distributter-app
     volumes:
       - ./storage.v3.json:/app/storage.v3.json
@@ -13,18 +15,8 @@ services:
   tts:
     build:
       context: .
-      dockerfile: Dockerfile.tts
+      dockerfile: docker/tts/Dockerfile
     container_name: distributter-tts
-    volumes:
-      - ./shared:/app/shared
-      - ./tts_models:/root/.local/share/tts
-    restart: unless-stopped
-
-  rhvoice:
-    build:
-      context: .
-      dockerfile: Dockerfile.rhvoice
-    container_name: distributter-rhvoice
     volumes:
       - ./shared:/app/shared
       - ./tts_models:/root/.local/share/tts
