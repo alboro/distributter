@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Sc\Channels\Vk\Sender;
+namespace Sc\Integration\Vk\Sender;
 
 readonly class VkSenderConfig
 {

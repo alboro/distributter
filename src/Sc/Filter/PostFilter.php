@@ -15,9 +15,6 @@ readonly class PostFilter
      */
     public function validate(TransferPostDto $transferPost): void
     {
-        if ($transferPost->fromSystemName === $transferPost->otherSystemName) {
-            throw new SameSystemPostFilterException();
-        }
         $systems = $transferPost->post->ids->getSystems();
         if (in_array($transferPost->otherSystemName, $systems, true)) {
             throw new PostFilterException('Already posted before');

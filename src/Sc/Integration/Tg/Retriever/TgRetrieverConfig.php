@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Sc\Channels\Tg\Retriever;
+namespace Sc\Integration\Tg\Retriever;
+
+use Sc\Config\CommonChannelConfigDto;
 
 readonly class TgRetrieverConfig
 {
@@ -14,6 +16,7 @@ readonly class TgRetrieverConfig
         public int $timeoutSec,
         public int $maxRetries,
         public int $retryDelay,
+        private CommonChannelConfigDto $dto,
     ) {}
 
     public static function fromEnvironment(): self
@@ -30,6 +33,20 @@ readonly class TgRetrieverConfig
             timeoutSec: (int)($_ENV['TG_RETRIEVAL_TIMEOUT_SEC'] ?? 30),
             maxRetries: (int)($_ENV['TG_RETRIEVAL_MAX_RETRIES'] ?? 3),
             retryDelay: (int)($_ENV['TG_RETRIEVAL_RETRY_DELAY'] ?? 2),
+            dto: new CommonChannelConfigDto(
+                itemCount: (int)($_ENV['ITEM_COUNT'] ?? 5),
+                ignoreTag: $_ENV['TAG_OF_IGNORE'] ?? '#local',
+            )
         );
+    }
+
+    public function itemCount(): int
+    {
+        return $this->dto->itemCount;
+    }
+
+    public function ignoreTag(): string
+    {
+        return $this->dto->ignoreTag;
     }
 }

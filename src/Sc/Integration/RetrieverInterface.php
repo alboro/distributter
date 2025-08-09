@@ -1,6 +1,6 @@
 <?php
 
-namespace Sc\Channels;
+namespace Sc\Integration;
 
 
 use Sc\Model\Post;

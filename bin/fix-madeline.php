@@ -7,7 +7,7 @@ require_once __DIR__ . '/../vendor/autoload.php';
 
 use Monolog\Logger;
 use Monolog\Handler\StreamHandler;
-use Sc\Channels\Tg\Retriever\MadelineProtoFixer;
+use Sc\Integration\Tg\Retriever\MadelineProtoFixer;
 
 // Create logger for the fixer
 $logger = new Logger('madeline-fixer');

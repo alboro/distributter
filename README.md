@@ -77,6 +77,7 @@ STORAGE_FILE_PATH=./storage.v3.json
 LOG_FILE_PATH=./log.log
 REQUEST_TIMEOUT_SEC=30
 ITEM_COUNT=5
+VK_RETRIEVER_ITEM_COUNT=10
 
 # Facebook setttings
 # FB_PAGE_ACCESS_TOKEN=your_facebook_page_token

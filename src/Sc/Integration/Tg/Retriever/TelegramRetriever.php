@@ -2,12 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Sc\Channels\Tg\Retriever;
+namespace Sc\Integration\Tg\Retriever;
 
 use danog\MadelineProto\API;
 use Psr\Log\LoggerInterface;
-use Sc\Channels\RetrieverInterface;
-use Sc\Config\AppConfig;
+use Sc\Integration\RetrieverInterface;
 use Sc\Model\{Post, PostId, PostIdCollection};
 use Sc\Service\Repository;
 
@@ -19,7 +18,7 @@ readonly class TelegramRetriever implements RetrieverInterface
 {
     public function __construct(
         private API $madelineProto,
-        private AppConfig $config,
+        private TgRetrieverConfig $tgRetrieverConfig,
         private LoggerInterface $logger,
         private Repository $storage,
         private string $systemName,
@@ -34,7 +33,7 @@ readonly class TelegramRetriever implements RetrieverInterface
 
     public function channelId(): string
     {
-        return $this->config->tgRetrieverConfig?->channel ?? '';
+        return $this->tgRetrieverConfig?->channel ?? '';
     }
 
     /**
@@ -44,7 +43,7 @@ readonly class TelegramRetriever implements RetrieverInterface
      */
     public function retrievePosts(): array
     {
-        if (empty($this->config->tgRetrieverConfig?->channel)) {
+        if (empty($this->tgRetrieverConfig?->channel)) {
             $this->logger->warning('TG_RETRIEVER_CHANNEL_ID not configured, skipping Telegram retrieval');
             return [];
         }
@@ -124,51 +123,6 @@ readonly class TelegramRetriever implements RetrieverInterface
         return false;
     }
 
-    /**
-     * Recreate MadelineProto API instance after fixing issues
-     */
-    private function recreateMadelineProtoApi(): void
-    {
-        try {
-            $this->logger->info('Recreating MadelineProto API instance after fix');
-
-            // Import settings from the current instance if possible
-            $settings = new \danog\MadelineProto\Settings();
-            $settings->getAppInfo()->setApiId((int) $this->config->tgRetrieverConfig->apiId);
-            $settings->getAppInfo()->setApiHash($this->config->tgRetrieverConfig->apiHash);
-
-            // Use the same aggressive timeouts
-            $settings->getConnection()->setTimeout(10.0);
-            $settings->getRpc()->setRpcDropTimeout(15);
-            $settings->getRpc()->setFloodTimeout(10);
-            $settings->getConnection()->setRetry(false);
-            $settings->getConnection()->setPingInterval(30);
-
-            // Disable verbose logging
-            $settings->getLogger()->setType(\danog\MadelineProto\Logger::ECHO_LOGGER);
-            $settings->getLogger()->setLevel(\danog\MadelineProto\Logger::LEVEL_FATAL);
-
-            // Create new API instance
-            $newApi = new \danog\MadelineProto\API($this->config->tgRetrieverConfig->sessionFile, $settings);
-
-            // Test the connection
-            $newApi->start();
-            $self = $newApi->getSelf();
-
-            if (!empty($self)) {
-                // Replace the broken instance with the new one
-                $this->madelineProto = $newApi;
-                $this->logger->info('✅ Successfully recreated MadelineProto API');
-            } else {
-                throw new \Exception('Failed to authorize new API instance');
-            }
-
-        } catch (\Throwable $e) {
-            $this->logger->error('Failed to recreate MadelineProto API: ' . $e->getMessage());
-            throw $e;
-        }
-    }
-
     private function fetchTelegramMessages(): array
     {
         try {
@@ -194,22 +148,22 @@ readonly class TelegramRetriever implements RetrieverInterface
                 // Retry after updating peer database
                 try {
                     $response = $this->madelineProto->messages->getHistory([
-                        'peer' => $this->config->tgRetrieverConfig->channel,
-                        'limit' => $this->config->itemCount,
+                        'peer' => $this->tgRetrieverConfig->channel,
+                        'limit' => $this->tgRetrieverConfig->itemCount(),
                     ]);
 
                     return $response['messages'] ?? [];
 
                 } catch (\Throwable $retryError) {
                     $this->logger->error('Channel unavailable even after updating peer database', [
-                        'channel' => $this->config->tgRetrieverConfig->channel,
+                        'channel' => $this->tgRetrieverConfig->channel,
                         'error' => $retryError->getMessage()
                     ]);
                 }
             }
 
             $this->logger->error('Channel unavailable', [
-                'channel' => $this->config->tgRetrieverConfig->channel,
+                'channel' => $this->tgRetrieverConfig->channel,
                 'reason' => 'Channel not found in MadelineProto peer database',
                 'solution' => 'Add account to private channel as participant'
             ]);
@@ -220,9 +174,9 @@ readonly class TelegramRetriever implements RetrieverInterface
 
     private function getHistory(): array
     {
-        $maxRetries = $this->config->tgRetrieverConfig?->maxRetries ?? 3;
-        $retryDelay = $this->config->tgRetrieverConfig?->retryDelay ?? 2;
-        $timeout = $this->config->tgRetrieverConfig?->timeoutSec ?? 30;
+        $maxRetries = $this->tgRetrieverConfig?->maxRetries ?? 3;
+        $retryDelay = $this->tgRetrieverConfig?->retryDelay ?? 2;
+        $timeout = $this->tgRetrieverConfig?->timeoutSec ?? 30;
 
         for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
             try {
@@ -231,8 +185,8 @@ readonly class TelegramRetriever implements RetrieverInterface
                 // Use timeout wrapper for the operation
                 $result = $this->executeWithTimeout(function() {
                     return $this->madelineProto->messages->getHistory([
-                        'peer' => $this->config->tgRetrieverConfig->channel,
-                        'limit' => $this->config->itemCount,
+                        'peer' => $this->tgRetrieverConfig->channel,
+                        'limit' => $this->tgRetrieverConfig->itemCount(),
                         'offset_date' => 0,
                         'offset_id' => 0,
                         'max_id' => 0,
@@ -323,7 +277,7 @@ readonly class TelegramRetriever implements RetrieverInterface
             }
 
             // Check if our channel is in the dialogs list
-            $channelId = $this->config->tgRetrieverConfig->channel;
+            $channelId = $this->tgRetrieverConfig->channel;
             $numericChannelId = str_replace('-100', '', $channelId);
 
             foreach ($dialogs['chats'] ?? [] as $chat) {
@@ -427,11 +381,8 @@ readonly class TelegramRetriever implements RetrieverInterface
 
     private function hasIgnoreTag(string $text): bool
     {
-        if (null === $this->config->ignoreTag) {
-            return false;
-        }
         return (bool)preg_match(
-            '/(?:^|\s)' . preg_quote($this->config->ignoreTag, '/') . '(?:\s|$)/i',
+            '/(?:^|\s)' . preg_quote($this->tgRetrieverConfig->ignoreTag(), '/') . '(?:\s|$)/i',
             $text
         );
     }

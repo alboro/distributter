@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Sc\Channels\Fb;
+namespace Sc\Integration\Fb;
 
 use Psr\Log\LoggerInterface;
-use Sc\Channels\SenderInterface;
+use Sc\Integration\SenderInterface;
 use Sc\Dto\TransferPostDto;
 use Sc\Model\PostId;
 use Sc\Model\PostIdCollection;

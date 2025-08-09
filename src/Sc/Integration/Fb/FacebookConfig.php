@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Sc\Channels\Fb;
+namespace Sc\Integration\Fb;
 
 /**
  * Конфигурация для работы с Facebook API

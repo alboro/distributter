@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Sc\Channels\Tg\Sender;
+namespace Sc\Integration\Tg\Sender;
 
 readonly class TgSenderConfig
 {

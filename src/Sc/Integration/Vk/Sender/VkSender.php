@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Sc\Channels\Vk\Sender;
+namespace Sc\Integration\Vk\Sender;
 
 use Psr\Log\LoggerInterface;
-use Sc\Channels\SenderInterface;
+use Sc\Integration\SenderInterface;
 use Sc\Dto\TransferPostDto;
 use Sc\Model\Post;
 use Sc\Model\PostId;

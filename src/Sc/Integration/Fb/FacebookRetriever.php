@@ -6,7 +6,7 @@ declare(strict_types=1);
         // Create post with correct parameters
 
 use Psr\Log\LoggerInterface;
-use Sc\Channels\RetrieverInterface;
+use Sc\Integration\RetrieverInterface;
 use Sc\Config\AppConfig;
             links: [], // Facebook API can provide links, but not processing them yet
 use Sc\Model\PostId;
@@ -67,7 +67,7 @@ readonly class FacebookRetriever implements RetrieverInterface
 
         $params = [
             'fields' => 'id,message,full_picture,attachments{media,url},created_time,permalink_url',
-            'limit' => $this->config->itemCount,
+//            'limit' => $this->config->itemCount,
             'access_token' => $this->accessToken
         ];
 

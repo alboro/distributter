@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Sc\Channels\Tg\Sender;
+namespace Sc\Integration\Tg\Sender;
 
 use Psr\Log\LoggerInterface;
-use Sc\Channels\SenderInterface;
+use Sc\Integration\SenderInterface;
 use Sc\Dto\TransferPostDto;
 use Sc\Model\PostId;
 use Sc\Model\PostIdCollection;

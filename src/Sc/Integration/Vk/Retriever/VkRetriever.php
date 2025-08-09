@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Sc\Channels\Vk\Retriever;
+namespace Sc\Integration\Vk\Retriever;
 
 use Psr\Log\LoggerInterface;
-use Sc\Channels\RetrieverInterface;
+use Sc\Integration\RetrieverInterface;
 use Sc\Filter\PostFilterException;
 use Sc\Model\{Post, PostId, PostIdCollection};
 use Sc\Service\Repository;
@@ -17,13 +17,13 @@ use VK\Client\VKApiClient;
 readonly class VkRetriever implements RetrieverInterface
 {
     public function __construct(
-        private VKApiClient $vk,
-        private VkRetrieverConfig $config,
-        private LoggerInterface $logger,
+        private VKApiClient        $vk,
+        private VkRetrieverConfig  $vkConfig,
+        private LoggerInterface    $logger,
         private VkAttachmentParser $attachmentParser,
-        private AuthorService $authorService,
-        private Repository $storage,
-        private string $systemName,
+        private AuthorService      $authorService,
+        private Repository         $storage,
+        private string             $systemName,
     ) {}
 
     public function systemName(): string
@@ -33,7 +33,7 @@ readonly class VkRetriever implements RetrieverInterface
 
     public function channelId(): string
     {
-        return $this->config->groupId ?? '';
+        return $this->vkConfig->groupId ?? '';
     }
 
     /**
@@ -53,10 +53,10 @@ readonly class VkRetriever implements RetrieverInterface
 
     private function fetchVkPosts(): array
     {
-        return $this->vk->wall()->get($this->config->token, [
-            'owner_id' => $this->config->groupId,
+        return $this->vk->wall()->get($this->vkConfig->token, [
+            'owner_id' => $this->vkConfig->groupId,
             'offset' => 0,
-            'count' => $this->config->dto->itemCount,
+            'count' => $this->vkConfig->itemCount(),
         ]);
     }
 
@@ -134,13 +134,13 @@ readonly class VkRetriever implements RetrieverInterface
     {
         $postId = (int)$vkItem['id'];
 
-        $expectedGroupId = $this->config->groupId;
+        $expectedGroupId = $this->vkConfig->groupId;
         if (!$expectedGroupId || (int)$vkItem['from_id'] !== (int)$expectedGroupId) {
             $this->logger->debug('Skip post', ['reason' => 'post by alien', 'vk_id' => $postId]);
             throw new PostFilterException('Post by alien');
         }
 
-        if (in_array($postId, $this->config->excludePostIds, true)) {
+        if (in_array($postId, $this->vkConfig->excludePostIds, true)) {
             $this->logger->debug('Skip post', ['reason' => 'exclude Vk Post Ids', 'vk_id' => $postId]);
             throw new PostFilterException('Post in exclude list');
         }
@@ -163,7 +163,7 @@ readonly class VkRetriever implements RetrieverInterface
     private function hasIgnoreTag(string $text): bool
     {
         return (bool)preg_match(
-            '/(?:^|\s)' . preg_quote($this->config->dto->ignoreTag, '/') . '(?:\s|$)/i',
+            '/(?:^|\s)' . preg_quote($this->vkConfig->ignoreTag(), '/') . '(?:\s|$)/i',
             $text
         );
     }

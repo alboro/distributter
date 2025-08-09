@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Sc\Channels\Vk\Retriever;
+namespace Sc\Integration\Vk\Retriever;
 
 use Sc\Model\Poll;
 

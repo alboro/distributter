@@ -9,17 +9,17 @@ use danog\MadelineProto\Settings;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
 use Psr\Log\LoggerInterface;
-use Sc\Channels\Fb\FacebookRetriever;
-use Sc\Channels\Fb\FacebookSender;
-use Sc\Channels\RetrieverInterface;
-use Sc\Channels\SenderInterface;
-use Sc\Channels\Tg\Retriever\MadelineProtoFixer;
-use Sc\Channels\Tg\Retriever\TelegramRetriever;
-use Sc\Channels\Tg\Sender\TelegramSender;
-use Sc\Channels\Vk\Retriever\AuthorService;
-use Sc\Channels\Vk\Retriever\VkAttachmentParser;
-use Sc\Channels\Vk\Retriever\VkRetriever;
-use Sc\Channels\Vk\Sender\VkSender;
+use Sc\Integration\Fb\FacebookRetriever;
+use Sc\Integration\Fb\FacebookSender;
+use Sc\Integration\RetrieverInterface;
+use Sc\Integration\SenderInterface;
+use Sc\Integration\Tg\Retriever\MadelineProtoFixer;
+use Sc\Integration\Tg\Retriever\TelegramRetriever;
+use Sc\Integration\Tg\Sender\TelegramSender;
+use Sc\Integration\Vk\Retriever\AuthorService;
+use Sc\Integration\Vk\Retriever\VkAttachmentParser;
+use Sc\Integration\Vk\Retriever\VkRetriever;
+use Sc\Integration\Vk\Sender\VkSender;
 use Sc\Config\AppConfig;
 use Sc\Dto\TransferPostDto;
 use Sc\Filter\{PostFilter, PostFilterException, SameSystemPostFilterException};
@@ -97,7 +97,6 @@ final readonly class Synchronizer
                 $this->logger->debug('Retrieve posts from', [
                     'system' => $retriever->systemName(),
                     'channel_id' => $retriever->channelId(),
-                    'count' => $this->config->itemCount,
                 ]);
 
                 $posts = $retriever->retrievePosts();
@@ -188,7 +187,7 @@ final readonly class Synchronizer
         // Creating VK retriever
         return new VkRetriever(
             vk: $vkApiClient,
-            config: $this->config->vkRetrieverConfig,
+            vkConfig: $this->config->vkRetrieverConfig,
             logger: $this->logger,
             attachmentParser: $attachmentParser,
             authorService: $authorService,
@@ -304,7 +303,7 @@ final readonly class Synchronizer
 
                 $telegramRetriever = new TelegramRetriever(
                     madelineProto: $madelineProto,
-                    config: $this->config,
+                    tgRetrieverConfig: $this->config->tgRetrieverConfig,
                     logger: $this->logger,
                     storage: $this->storage,
                     systemName: 'tg',

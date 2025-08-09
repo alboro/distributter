@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Sc\Channels\Fb;
+namespace Sc\Integration\Fb;
 
 use Sc\Model\Post;
 
@@ -52,7 +52,6 @@ class FacebookMessageFormatter
         // Truncate with ellipsis
         $truncated = mb_substr($text, 0, self::MAX_CAPTION_LENGTH - 3);
 
-        // Try to truncate at the last word
         $lastSpace = mb_strrpos($truncated, ' ');
         if ($lastSpace !== false && $lastSpace > self::MAX_CAPTION_LENGTH * 0.8) {
             $truncated = mb_substr($truncated, 0, $lastSpace);
