@@ -89,10 +89,16 @@ deploy: ## Deploy project
 	source deploy.conf && ./bin/deploy.sh deploy
 
 auth: ## Telegram authentication
-	./bin/auth-telegram.php
+	docker-compose exec app ./bin/auth-telegram.php
 
 run: ## Run main script
-	./bin/distributter.php
+	docker-compose exec app ./bin/distributter.php
+
+composer-install: ## Install PHP dependencies
+	docker-compose exec app composer install
+
+composer-update: ## Update PHP dependencies
+	docker-compose exec app composer update
 
 # Build and deploy
 rebuild: ## Rebuild containers
@@ -124,12 +130,6 @@ status: ## Show container status
 clean: ## Clean unused Docker resources
 	docker system prune -f
 	docker volume prune -f
-
-composer-install: ## Install PHP dependencies
-	docker-compose exec app composer install
-
-composer-update: ## Update PHP dependencies
-	docker-compose exec app composer update
 
 test: ## Test service (make test tts)
 	@if [ "$(filter tts,$(MAKECMDGOALS))" = "tts" ]; then \

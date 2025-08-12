@@ -10,6 +10,7 @@
 !/shared/.*
 /tts_models*
 MadelineProto.log
+/logs/*
 *.log
 deploy.conf
 test-vk-items.json

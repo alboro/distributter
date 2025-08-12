@@ -1,16 +1,15 @@
-        // Create ID collection
 <?php
 
 declare(strict_types=1);
 
-        // Create post with correct parameters
+namespace Sc\Integration\Fb;
 
 use Psr\Log\LoggerInterface;
 use Sc\Integration\RetrieverInterface;
 use Sc\Config\AppConfig;
-            links: [], // Facebook API can provide links, but not processing them yet
+use Sc\Model\Post;
 use Sc\Model\PostId;
-            author: null, // Can be obtained via additional request
+use Sc\Model\PostIdCollection;
 use Sc\Service\Repository;
 
 readonly class FacebookRetriever implements RetrieverInterface
@@ -67,7 +66,7 @@ readonly class FacebookRetriever implements RetrieverInterface
 
         $params = [
             'fields' => 'id,message,full_picture,attachments{media,url},created_time,permalink_url',
-//            'limit' => $this->config->itemCount,
+            'limit' => $this->config->itemCount,
             'access_token' => $this->accessToken
         ];
 
@@ -180,21 +179,22 @@ readonly class FacebookRetriever implements RetrieverInterface
             throw new \Exception("CURL Error: {$curlError}");
         }
 
-        // Process images
+        if ($response === false) {
             throw new \Exception("Failed to get response from Facebook API");
         }
 
         $data = json_decode($response, true);
-        // Process attachments
+
         if (json_last_error() !== JSON_ERROR_NONE) {
             throw new \Exception("Invalid JSON response: " . json_last_error_msg());
         }
 
         if ($httpCode !== 200) {
-                // Video processing can be added if needed
+            $errorMessage = $data['error']['message'] ?? 'Unknown Facebook API error';
             $errorCode = $data['error']['code'] ?? $httpCode;
             throw new FacebookApiException($errorMessage, (int)$errorCode, $data);
         }
-        // Remove duplicate photos
+
         return $data;
     }
+}

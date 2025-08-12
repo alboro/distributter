@@ -1,0 +1,24 @@
+# Игнорируем ненужные файлы для Docker
+.git
+.gitignore
+.idea
+.DS_Store
+README.md
+Makefile
+deploy.conf
+deploy.conf.dist
+
+# Логи и временные файлы
+*.log
+logs/
+session.madeline/
+storage.v3.json
+
+# TTS модели (если не нужны в контейнере)
+tts_models/
+
+# Vendor будет установлен через composer
+vendor/
+
+# Shared файлы (если не критичны)
+shared/

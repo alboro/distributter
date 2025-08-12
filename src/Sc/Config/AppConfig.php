@@ -15,6 +15,7 @@ readonly class AppConfig
     public function __construct(
         public bool               $mockSenders,
         public bool               $cronDisabled,
+        public bool               $cronRun,
         public bool               $madelineProtoSlowIpc,
         public int                $requestTimeoutSec,
         public string             $storageFilePath,
@@ -35,6 +36,7 @@ readonly class AppConfig
         return new self(
             mockSenders: !!($_ENV['DRY_RUN'] ?? false),
             cronDisabled: !!($_ENV['APP_CRON_DISABLED'] ?? false),
+            cronRun: !!($_ENV['CROND_RUN'] ?? false),
             madelineProtoSlowIpc: !!($_ENV['MADELINE_PROTO_SLOW_IPC'] ?? true),
             requestTimeoutSec: (int)($_ENV['REQUEST_TIMEOUT_SEC'] ?? 30),
             storageFilePath: $_ENV['STORAGE_FILE_PATH'] ?? __DIR__ . '/../../../storage.v3.json',

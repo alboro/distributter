@@ -42,7 +42,7 @@ final readonly class Synchronizer
     public function __construct(private AppConfig $config)
     {
         // Check if application is disabled
-        if ($this->config->cronDisabled) {
+        if ($this->config->cronRun && $this->config->cronDisabled) {
             echo "Application is disabled via APP_CRON_DISABLED environment variable. Exiting.\n";
             exit(0);
         }
@@ -240,8 +240,10 @@ final readonly class Synchronizer
                 $settings->getConnection()->setRetry(false); // Disabling automatic retries
                 $settings->getConnection()->setPingInterval(30); // Increasing ping interval
 
-                // IPC settings from configuration
-                $settings->getIpc()->setSlow($this->config->madelineProtoSlowIpc);
+                // Force IPC slow mode for Docker compatibility using official method
+                if ($this->config->madelineProtoSlowIpc && !defined('MADELINE_WORKER_TYPE')) {
+                    define('MADELINE_WORKER_TYPE', 'madeline-ipc');
+                }
 
                 // Checking if the session file exists
                 if (!file_exists($this->config->tgRetrieverConfig->sessionFile)) {

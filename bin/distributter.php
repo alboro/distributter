@@ -49,7 +49,7 @@ register_shutdown_function(static function() use ($lockFile) {
 });
 
 $dotenv = Dotenv::createUnsafeImmutable(__DIR__);
-$dotenv->safeLoad();
+$dotenv->load(); // Используем load() вместо safeLoad() чтобы не перезаписывать существующие переменные
 
 $syncer = new Synchronizer(
     AppConfig::fromEnvironment()

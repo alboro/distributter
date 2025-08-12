@@ -63,7 +63,7 @@ class FacebookMessageFormatter
     public function sanitizeText(string $text): string
     {
         $text = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $text);
-        $text = str_replace(['"', '"', ''', '''], ['"', '"', "'", "'"], $text);
+        $text = str_replace(['"', '"', "'", "'"], ['"', '"', "'", "'"], $text);
         $text = str_replace(['—', '–'], '-', $text);
 
         return $text;
