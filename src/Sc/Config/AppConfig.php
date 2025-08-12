@@ -13,15 +13,17 @@ readonly class AppConfig
 {
     public const TAG_OF_IGNORE = '#local';
     public function __construct(
-        public bool    $mockSenders,
-        public int     $requestTimeoutSec,
-        public string  $storageFilePath,
-        public string  $logFilePath,
+        public bool               $mockSenders,
+        public bool               $cronDisabled,
+        public bool               $madelineProtoSlowIpc,
+        public int                $requestTimeoutSec,
+        public string             $storageFilePath,
+        public string             $logFilePath,
         // vk
-        public ?VkSenderConfig $vkSenderConfig = null,
+        public ?VkSenderConfig    $vkSenderConfig = null,
         public ?VkRetrieverConfig $vkRetrieverConfig = null,
         // tg
-        public ?TgSenderConfig $tgSenderConfig = null,
+        public ?TgSenderConfig    $tgSenderConfig = null,
         public ?TgRetrieverConfig $tgRetrieverConfig = null,
         // fb
         public string  $fbPageAccessToken = '',
@@ -32,6 +34,8 @@ readonly class AppConfig
     {
         return new self(
             mockSenders: !!($_ENV['DRY_RUN'] ?? false),
+            cronDisabled: !!($_ENV['APP_CRON_DISABLED'] ?? false),
+            madelineProtoSlowIpc: !!($_ENV['MADELINE_PROTO_SLOW_IPC'] ?? true),
             requestTimeoutSec: (int)($_ENV['REQUEST_TIMEOUT_SEC'] ?? 30),
             storageFilePath: $_ENV['STORAGE_FILE_PATH'] ?? __DIR__ . '/../../../storage.v3.json',
             logFilePath: $_ENV['LOG_FILE_PATH'] ?? __DIR__ . '/../../../log.log',

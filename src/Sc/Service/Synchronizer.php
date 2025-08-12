@@ -41,6 +41,12 @@ final readonly class Synchronizer
 
     public function __construct(private AppConfig $config)
     {
+        // Check if application is disabled
+        if ($this->config->cronDisabled) {
+            echo "Application is disabled via APP_CRON_DISABLED environment variable. Exiting.\n";
+            exit(0);
+        }
+
         $this->storage = Repository::load($this->config->storageFilePath);
 
         $this->logger = $this->createLogger();
@@ -233,6 +239,9 @@ final readonly class Synchronizer
                 // Additional settings for stability
                 $settings->getConnection()->setRetry(false); // Disabling automatic retries
                 $settings->getConnection()->setPingInterval(30); // Increasing ping interval
+
+                // IPC settings from configuration
+                $settings->getIpc()->setSlow($this->config->madelineProtoSlowIpc);
 
                 // Checking if the session file exists
                 if (!file_exists($this->config->tgRetrieverConfig->sessionFile)) {

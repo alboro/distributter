@@ -166,7 +166,7 @@ show_status() {
 
     echo ""
     log "INFO" "=== Cron job status ==="
-    ssh_exec "crontab -l | grep -E 'vk2tg|sync-vk|distributter' | wc -l | xargs echo 'Active cron jobs:'" "checking cron jobs" || log "WARN" "Failed to check cron jobs"
+    ssh_exec "crontab -l | grep -E 'vk2tg|distributter' | wc -l | xargs echo 'Active cron jobs:'" "checking cron jobs" || log "WARN" "Failed to check cron jobs"
 
     echo ""
     log "INFO" "=== Recent runs (from logs) ==="

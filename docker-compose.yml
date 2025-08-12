@@ -20,7 +20,9 @@ services:
     volumes:
       - ./shared:/app/shared
       - ./tts_models:/root/.local/share/tts
-    restart: unless-stopped
+    restart: "no"
+    profiles:
+      - tts
 
 volumes:
   shared:
