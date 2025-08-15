@@ -50,7 +50,7 @@ RUN echo '/app/logs/cron.log {\n\
 }' > /etc/logrotate.d/distributter
 
 # Add cron jobs - изменяем на каждую минуту для тестирования и указываем полный путь к PHP
-RUN echo "* * * * * cd /app && /usr/local/bin/php bin/distributter-docker.php >> /app/logs/cron.log 2>&1" > /tmp/crontab && \
+RUN echo "* * * * * cd /app && CRON_RUN=1 /usr/local/bin/php bin/distributter-docker.php >> /app/logs/cron.log 2>&1" > /tmp/crontab && \
     echo "0 2 * * * /usr/sbin/logrotate /etc/logrotate.d/distributter" >> /tmp/crontab && \
     crontab /tmp/crontab && \
     rm /tmp/crontab

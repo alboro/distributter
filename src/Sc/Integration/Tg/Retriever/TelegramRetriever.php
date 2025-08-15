@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Sc\Integration\Tg\Retriever;
 
 use danog\MadelineProto\API;
+use danog\MadelineProto\PeerNotInDbException;
+use danog\MadelineProto\RPCErrorException;
 use Psr\Log\LoggerInterface;
 use Sc\Integration\RetrieverInterface;
 use Sc\Model\{Post, PostId, PostIdCollection};
@@ -126,75 +128,137 @@ readonly class TelegramRetriever implements RetrieverInterface
     private function fetchTelegramMessages(): array
     {
         try {
-            // First try to get messages directly
-            return $this->getHistory();
+            return $this->getHistoryWithRetries();
 
+        } catch (PeerNotInDbException $exception) {
+            return $this->handleNotInDbException($exception);
         } catch (\Throwable $e) {
-            // Handle peer database exceptions specifically
-            return $this->handlePeerDatabaseException($e);
+            throw $e;
         }
+    }
+
+    function ensureChannelPeer(API $mp, string $identifier): array {
+        // 1) Самый простой и универсальный путь — getInfo()
+        //    Понимает: -100..., @username, t.me/..., t.me/+inviteHash
+        try {
+            $info = $mp->getInfo($identifier);
+            if (!empty($info['InputPeer']) && ($info['InputPeer']['_'] ?? '') === 'inputPeerChannel') {
+                return $info['InputPeer']; // ['_'=>'inputPeerChannel','channel_id'=>..., 'access_hash'=>...]
+            }
+        } catch (\Throwable $e) {
+            // идём дальше — разрулим вручную
+        }
+
+        // 2) Если это инвайт-ссылка (+hash) — проверяем/импортируем
+        if (preg_match('~t\.me/\+([A-Za-z0-9_-]+)~', $identifier, $m)) {
+            $hash = $m[1];
+
+            // а) checkChatInvite: разные типы ответов
+            try {
+                $res = $mp->messages->checkChatInvite(['hash' => $hash]);
+                // варианты: chatInviteAlready (уже состоишь), chatInvitePeek (просмотр), chatInvite (приглашение)
+                $chat = $res['chat'] ?? null;
+                if (!$chat && isset($res['chats'][0])) $chat = $res['chats'][0];
+
+                if ($chat && ($chat['_'] ?? '') === 'channel' && isset($chat['id'], $chat['access_hash'])) {
+                    return ['_' => 'inputPeerChannel', 'channel_id' => $chat['id'], 'access_hash' => $chat['access_hash']];
+                }
+            } catch (\Throwable $e) {
+                // допустимо — пробуем importChatInvite
+            }
+
+            // б) importChatInvite: вернёт Updates с массивом chats
+            try {
+                $upd = $mp->messages->importChatInvite(['hash' => $hash]);
+                $chats = $upd['chats'] ?? [];
+                foreach ($chats as $ch) {
+                    if (($ch['_'] ?? '') === 'channel' && isset($ch['id'], $ch['access_hash'])) {
+                        return ['_' => 'inputPeerChannel', 'channel_id' => $ch['id'], 'access_hash' => $ch['access_hash']];
+                    }
+                }
+            } catch (RPCErrorException $e) {
+                // важные кейсы: INVITE_HASH_EXPIRED / INVITE_HASH_INVALID / USER_ALREADY_PARTICIPANT
+                if (in_array($e->rpc, ['USER_ALREADY_PARTICIPANT', 'USER_ALREADY_INVITED'], true)) {
+                    // Уже состоим — getPeerDialogs точечно подтянет объект
+                    $r = $mp->messages->getPeerDialogs(['peers' => [$identifier]]);
+                    foreach (($r['chats'] ?? []) as $ch) {
+                        if (($ch['_'] ?? '') === 'channel' && isset($ch['id'], $ch['access_hash'])) {
+                            return ['_' => 'inputPeerChannel', 'channel_id' => $ch['id'], 'access_hash' => $ch['access_hash']];
+                        }
+                    }
+                }
+                // Иначе пробросим дальше
+            }
+        }
+
+        // 3) Если у тебя -100… (numeric), getPeerDialogs справится, когда БД пустая
+        if (preg_match('~^-?100(\d+)$~', $identifier, $m)) {
+            // Madeline понимает и строку -100..., и InputPeer/peer string
+            $r = $mp->messages->getPeerDialogs(['peers' => [$identifier]]);
+            foreach (($r['chats'] ?? []) as $ch) {
+                if (($ch['_'] ?? '') === 'channel' && isset($ch['id'], $ch['access_hash'])) {
+                    return ['_' => 'inputPeerChannel', 'channel_id' => $ch['id'], 'access_hash' => $ch['access_hash']];
+                }
+            }
+        }
+
+        // 4) На крайний случай — попробуем ещё раз getInfo на "очищенном" виде
+        foreach ([$identifier, ltrim($identifier, '@'), preg_replace('~^https?://t\.me/~', '', $identifier)] as $cand) {
+            try {
+                $info = $mp->getInfo($cand);
+                if (!empty($info['InputPeer']) && ($info['InputPeer']['_'] ?? '') === 'inputPeerChannel') {
+                    return $info['InputPeer'];
+                }
+            } catch (\Throwable $e) {}
+        }
+
+        throw new \RuntimeException('Cannot resolve channel peer: '.$identifier);
     }
 
     /**
      * Handles exceptions related to peer database
      */
-    private function handlePeerDatabaseException(\Throwable $e): array
+    private function handleNotInDbException(PeerNotInDbException $e): array
     {
-        if (strpos($e->getMessage(), 'This peer is not present in the internal peer database') !== false) {
-            $this->logger->warning('Channel not found in peer database, trying to update peer database');
-
-            // Try to update peer database
-            if ($this->updatePeerDatabase()) {
-                // Retry after updating peer database
-                try {
-                    $response = $this->madelineProto->messages->getHistory([
-                        'peer' => $this->tgRetrieverConfig->channel,
-                        'limit' => $this->tgRetrieverConfig->itemCount(),
-                    ]);
-
-                    return $response['messages'] ?? [];
-
-                } catch (\Throwable $retryError) {
-                    $this->logger->error('Channel unavailable even after updating peer database', [
-                        'channel' => $this->tgRetrieverConfig->channel,
-                        'error' => $retryError->getMessage()
-                    ]);
-                }
-            }
-
-            $this->logger->error('Channel unavailable', [
-                'channel' => $this->tgRetrieverConfig->channel,
-                'reason' => 'Channel not found in MadelineProto peer database',
-                'solution' => 'Add account to private channel as participant'
-            ]);
+        $this->logger->warning('Peer not found in database, attempting to fetch peer dialogs', [
+            'channel' => $this->tgRetrieverConfig->channel,
+            'error' => $e->getMessage()
+        ]);
+        try {
+            $result = $this->ensureChannelPeer($this->madelineProto, $this->tgRetrieverConfig->channel);
+        } catch (\Throwable $e) {
+            $result = $this->ensureChannelPeer($this->madelineProto, 'https://t.me/+lBteMtQefyE5MmU0'); // @todo
         }
 
-        throw $e;
+        $this->logger->warning('Fetched peer channel messages!');
+        return $result['messages'] ?? [];
     }
 
-    private function getHistory(): array
+    private function getPeer(): string
     {
-        $maxRetries = $this->tgRetrieverConfig?->maxRetries ?? 3;
+        return $this->tgRetrieverConfig->channel;
+    }
+
+    private function getHistoryWithRetries(): array
+    {
+        $maxRetries = $this->tgRetrieverConfig?->maxRetries ?? 1;
         $retryDelay = $this->tgRetrieverConfig?->retryDelay ?? 2;
-        $timeout = $this->tgRetrieverConfig?->timeoutSec ?? 30;
 
         for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
             try {
                 $this->logger->debug("Attempting to get history (attempt {$attempt}/{$maxRetries})");
 
                 // Use timeout wrapper for the operation
-                $result = $this->executeWithTimeout(function() {
-                    return $this->madelineProto->messages->getHistory([
-                        'peer' => $this->tgRetrieverConfig->channel,
-                        'limit' => $this->tgRetrieverConfig->itemCount(),
-                        'offset_date' => 0,
-                        'offset_id' => 0,
-                        'max_id' => 0,
-                        'min_id' => 0,
-                        'add_offset' => 0,
-                        'hash' => [0]
-                    ]);
-                }, $timeout);
+                $result = $this->madelineProto->messages->getHistory([
+                    'peer' => $this->getPeer(),
+                    'limit' => $this->tgRetrieverConfig->itemCount(),
+                    'offset_date' => 0,
+                    'offset_id' => 0,
+                    'max_id' => 0,
+                    'min_id' => 0,
+                    'add_offset' => 0,
+                    'hash' => [0]
+                ]);
 
                 $this->logger->debug("Successfully retrieved history on attempt {$attempt}");
                 return $result['messages'] ?? [];
@@ -214,107 +278,6 @@ readonly class TelegramRetriever implements RetrieverInterface
         }
 
         throw new \RuntimeException('All retry attempts failed');
-    }
-
-    /**
-     * Execute operation with timeout
-     */
-    private function executeWithTimeout(callable $operation, int $timeoutSeconds)
-    {
-        // Set a reasonable timeout for the operation
-        $startTime = time();
-
-        try {
-            // For MadelineProto, we can't easily wrap with timeout,
-            // but we can add some safety measures
-
-            // Log start of operation
-            $this->logger->debug("Starting operation with {$timeoutSeconds}s timeout");
-
-            $result = $operation();
-
-            $duration = time() - $startTime;
-            $this->logger->debug("Operation completed in {$duration} seconds");
-
-            return $result;
-
-        } catch (\Throwable $e) {
-            $duration = time() - $startTime;
-            $this->logger->warning("Operation failed after {$duration} seconds: " . $e->getMessage());
-            throw $e;
-        }
-    }
-
-    /**
-     * Updates MadelineProto peer database
-     */
-    private function updatePeerDatabase(): bool
-    {
-        try {
-            $this->logger->debug('Updating MadelineProto peer database');
-
-            // Get dialogs list to update peer database (with hash parameter like in test-channel-access.php)
-            $dialogs = $this->madelineProto->messages->getDialogs([
-                'offset_date' => 0,
-                'offset_id' => 0,
-                'offset_peer' => ['_' => 'inputPeerEmpty'],
-                'limit' => 100,
-                'hash' => 0
-            ]);
-
-            $this->logger->debug('Peer database updated', [
-                'dialogs_count' => count($dialogs['dialogs'] ?? [])
-            ]);
-
-            // Also try to get self info for database update (like in test-channel-access.php)
-            try {
-                $self = $this->madelineProto->getSelf();
-                $this->logger->debug('Self info retrieved', [
-                    'name' => $self['first_name'] ?? 'Unknown'
-                ]);
-            } catch (\Throwable $e) {
-                $this->logger->debug('Could not get self info: ' . $e->getMessage());
-            }
-
-            // Check if our channel is in the dialogs list
-            $channelId = $this->tgRetrieverConfig->channel;
-            $numericChannelId = str_replace('-100', '', $channelId);
-
-            foreach ($dialogs['chats'] ?? [] as $chat) {
-                if ($chat['id'] == $numericChannelId) {
-                    $this->logger->info('Channel found in dialogs list', [
-                        'channel_id' => $channelId,
-                        'title' => $chat['title'] ?? 'Unknown'
-                    ]);
-                    return true;
-                }
-            }
-
-            $this->logger->debug('Channel not found in dialogs', [
-                'channel_id' => $channelId,
-                'chats_count' => count($dialogs['chats'] ?? [])
-            ]);
-
-            // Try to get channel info using getInfo() method (like in test-channel-access.php)
-            try {
-                $channelInfo = $this->madelineProto->getInfo($channelId);
-                $this->logger->info('Channel accessible via getInfo', [
-                    'type' => $channelInfo['type'] ?? 'unknown',
-                    'id' => $channelInfo['bot_api_id'] ?? 'unknown'
-                ]);
-                return true;
-            } catch (\Throwable $e) {
-                $this->logger->debug('getInfo failed: ' . $e->getMessage());
-            }
-
-            return true;
-
-        } catch (\Throwable $e) {
-            $this->logger->error('Error updating peer database', [
-                'error' => $e->getMessage()
-            ]);
-            return false;
-        }
     }
 
     /**

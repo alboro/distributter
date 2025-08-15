@@ -2,6 +2,7 @@
 /vendor/
 /bin/.env
 /session.madeline/*
+/docker/app/session.madeline.docker/*
 /bin/session.madeline/*
 /bin/MadelineProto.log
 /bin/squash-history.sh

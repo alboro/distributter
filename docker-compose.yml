@@ -11,7 +11,7 @@ services:
       - './src:/app/src'
       - './vendor:/app/vendor'
       - './storage.v3.json:/app/storage.v3.json'
-      - './session.madeline:/app/session.madeline'
+      - './docker/app/session.madeline.docker:/app/session.madeline.docker'
       - './shared:/app/shared'
       - './logs:/app/logs'
     tmpfs:
