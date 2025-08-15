@@ -7,9 +7,16 @@ services:
       dockerfile: docker/app/Dockerfile
     container_name: distributter-app
     volumes:
-      - ./storage.v3.json:/app/storage.v3.json
-      - ./session.madeline:/app/session.madeline
-      - ./shared:/app/shared
+      - './bin:/app/bin'
+      - './src:/app/src'
+      - './vendor:/app/vendor'
+      - './storage.v3.json:/app/storage.v3.json'
+      - './session.madeline:/app/session.madeline'
+      - './shared:/app/shared'
+      - './logs:/app/logs'
+    tmpfs:
+      - '/tmp'
+      - '/var/tmp'
     restart: unless-stopped
 
   tts:
@@ -18,8 +25,8 @@ services:
       dockerfile: docker/tts/Dockerfile
     container_name: distributter-tts
     volumes:
-      - ./shared:/app/shared
-      - ./tts_models:/root/.local/share/tts
+      - './shared:/app/shared'
+      - './tts_models:/root/.local/share/tts'
     restart: "no"
     profiles:
       - tts

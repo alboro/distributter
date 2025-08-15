@@ -131,15 +131,6 @@ clean: ## Clean unused Docker resources
 	docker system prune -f
 	docker volume prune -f
 
-test: ## Test service (make test tts)
-	@if [ "$(filter tts,$(MAKECMDGOALS))" = "tts" ]; then \
-		echo "Testing TTS..."; \
-		./bin/tts-wrapper.sh "Hello world! This is a speech synthesis test." shared/test-output.wav; \
-		echo "Result in shared/test-output.wav"; \
-	else \
-		echo "Usage: make test tts"; \
-	fi
-
 # Empty targets for arguments
 app:
 	@:

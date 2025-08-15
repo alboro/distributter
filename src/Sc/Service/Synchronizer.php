@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Sc\Service;
 
 use danog\MadelineProto\API;
+use danog\MadelineProto\Magic;
 use danog\MadelineProto\Settings;
+use danog\MadelineProto\Settings\Ipc;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
 use Psr\Log\LoggerInterface;
@@ -220,7 +222,10 @@ final readonly class Synchronizer
         if (null !== $this->config->tgRetrieverConfig) {
             $fixer = new MadelineProtoFixer($this->logger, dirname($this->config->tgRetrieverConfig?->sessionFile ?? 'session.madeline'));
             try {
+//                Magic::$isIpcWorker = !$this->config->madelineProtoSlowIpc;
                 $settings = new Settings();
+                $ipc = new Ipc();
+                $settings->merge($ipc);
                 $settings->getAppInfo()->setApiId((int)$this->config->tgRetrieverConfig->apiId);
                 $settings->getAppInfo()->setApiHash($this->config->tgRetrieverConfig->apiHash);
 
@@ -242,7 +247,7 @@ final readonly class Synchronizer
 
                 // Force IPC slow mode for Docker compatibility using official method
                 if ($this->config->madelineProtoSlowIpc && !defined('MADELINE_WORKER_TYPE')) {
-                    define('MADELINE_WORKER_TYPE', 'madeline-ipc');
+                    define('MADELINE_WORKER_TYPE', 'NOT_madeline-ipc');
                 }
 
                 // Checking if the session file exists

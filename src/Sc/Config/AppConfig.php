@@ -34,10 +34,11 @@ readonly class AppConfig
     public static function fromEnvironment(): self
     {
         return new self(
-            mockSenders: !!($_ENV['DRY_RUN'] ?? false),
-            cronDisabled: !!($_ENV['APP_CRON_DISABLED'] ?? false),
-            cronRun: !!($_ENV['CROND_RUN'] ?? false),
-            madelineProtoSlowIpc: !!($_ENV['MADELINE_PROTO_SLOW_IPC'] ?? true),
+            mockSenders: filter_var($_ENV['DRY_RUN'] ?? false, FILTER_VALIDATE_BOOLEAN),
+            cronDisabled: filter_var($_ENV['APP_CRON_DISABLED'] ?? false, FILTER_VALIDATE_BOOLEAN),
+            cronRun: filter_var($_ENV['CRON_RUN'] ?? false, FILTER_VALIDATE_BOOLEAN),
+            madelineProtoSlowIpc: filter_var($_ENV['MADELINE_PROTO_SLOW_IPC'] ?? false, FILTER_VALIDATE_BOOLEAN),
+
             requestTimeoutSec: (int)($_ENV['REQUEST_TIMEOUT_SEC'] ?? 30),
             storageFilePath: $_ENV['STORAGE_FILE_PATH'] ?? __DIR__ . '/../../../storage.v3.json',
             logFilePath: $_ENV['LOG_FILE_PATH'] ?? __DIR__ . '/../../../log.log',
