@@ -11,14 +11,13 @@ deploy.conf.dist
 # Логи и временные файлы
 *.log
 logs/
-session.madeline/
-storage.v3.json
+var/session.madeline/
 
 # TTS модели (если не нужны в контейнере)
-tts_models/
+var/tts_models/
 
 # Vendor будет установлен через composer
-vendor/
+#vendor/
 
 # Shared файлы (если не критичны)
-shared/
+#shared/

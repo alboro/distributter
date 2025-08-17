@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Sc\Filter;
 
 class SameSystemPostFilterException extends PostFilterException

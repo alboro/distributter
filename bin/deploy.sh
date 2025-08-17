@@ -93,29 +93,30 @@ deploy_to_server() {
     log "INFO" "Step 2: Resetting local changes"
     ssh -i "$SSH_KEY" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
         "cd '$SERVER_PATH' && git reset --hard HEAD && git clean -fd && echo 'Local changes reset'"
-
+# todo: add the command `make down` at the server here.
     log "INFO" "Step 3: Updating code from Git"
     ssh -i "$SSH_KEY" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
         "cd '$SERVER_PATH' && git fetch origin && git reset --hard origin/$DEPLOY_BRANCH"
 
-    log "INFO" "Step 4: Updating Composer dependencies"
-    ssh -i "$SSH_KEY" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
-        "cd '$SERVER_PATH' && bin/build.sh"
-
-    log "INFO" "Step 5: Checking syntax"
-    ssh -i "$SSH_KEY" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
-        "cd '$SERVER_PATH' && php -l src/Sc/Service/Synchronizer.php"
+#    log "INFO" "Step 4: Updating Composer dependencies"
+#    ssh -i "$SSH_KEY" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
+#        "cd '$SERVER_PATH' && bin/build.sh"
+#
+#    log "INFO" "Step 5: Checking syntax"
+#    ssh -i "$SSH_KEY" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
+#        "cd '$SERVER_PATH' && php -l src/Sc/Service/Synchronizer.php"
+# todo: add the command `make up` at the server here.
 
     log "INFO" "Step 6: Logging deployment"
     ssh -i "$SSH_KEY" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
-        "cd '$SERVER_PATH' && echo \"\$(date '+%Y-%m-%d %H:%M:%S') [DEPLOY] Successfully updated to commit \$(git rev-parse --short HEAD)\" >> log.log && echo 'New commit: '\$(git rev-parse --short HEAD)"
+        "cd '$SERVER_PATH' && echo \"\$(date '+%Y-%m-%d %H:%M:%S') [DEPLOY] Successfully updated to commit \$(git rev-parse --short HEAD)\" >> var/logs/log.log && echo 'New commit: '\$(git rev-parse --short HEAD)"
 
     log "INFO" "Step 7: Cleaning up backup"
     ssh -i "$SSH_KEY" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
         "cd '$SERVER_PATH' && rm -f .last_backup && backup_dir=\$(cat .last_backup 2>/dev/null || echo '') && [ -n \"\$backup_dir\" ] && rm -rf \"\$backup_dir\" 2>/dev/null && echo 'Backup removed' || echo 'Backup not found'"
 
     log "INFO" "Deployment completed successfully!"
-    log "INFO" "Application is ready to run via cron"
+    log "INFO" "Application is being run via cron"
 }
 
 # Rollback function
@@ -140,7 +141,7 @@ rollback_on_server() {
         cp -r \"\$backup_path/\"* .
 
         echo '[INFO] Installing dependencies...'
-        composer install --no-dev --optimize-autoloader --no-interaction
+        bin/build.sh
 
         echo '[INFO] Rollback completed'
     "
@@ -170,7 +171,7 @@ show_status() {
 
     echo ""
     log "INFO" "=== Recent runs (from logs) ==="
-    ssh_exec "tail -n 5 log.log 2>/dev/null || echo 'Logs not found'" "getting logs from project" || true
+    ssh_exec "tail -n 5 var/logs/log.log 2>/dev/null || echo 'Logs not found'" "getting logs from project" || true
 }
 
 # Main function
@@ -196,7 +197,7 @@ main() {
         "logs")
             check_ssh_connection
             log "INFO" "Showing application logs..."
-            ssh_exec "tail -n 20 log.log 2>/dev/null || echo 'Logs not found'" "getting application logs"
+            ssh_exec "tail -n 20 var/logs/log.log 2>/dev/null || echo 'Logs not found'" "getting application logs"
             ;;
         "ssh")
             check_ssh_connection

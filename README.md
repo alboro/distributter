@@ -68,13 +68,13 @@ TG_CHANNEL_ID=-1001234567890
 TG_ENABLE_NOTIFICATIONS=false
 
 # MadelineProto Settings
-MADELINE_SESSION_PATH=./session.madeline
+MADELINE_SESSION_PATH=./var/session.madeline
 MADELINE_API_ID=12345
 MADELINE_API_HASH=your_api_hash
 
 # Application Settings
-STORAGE_FILE_PATH=./storage.v3.json
-LOG_FILE_PATH=./log.log
+STORAGE_FILE_PATH=./var/storage.v3.json
+LOG_FILE_PATH=./var/logs/log.log
 REQUEST_TIMEOUT_SEC=30
 ITEM_COUNT=5
 VK_RETRIEVER_ITEM_COUNT=10
@@ -112,7 +112,7 @@ cp .env.example .env
 ### Production Deployment
 ```sh
 # Initial setup
-source deploy.conf && ./bin/deploy.sh deploy
+source config/deploy.conf && bin/deploy.sh deploy
 
 # Set up cron job for automatic synchronization
 # Add to crontab: */5 * * * * cd /var/www/distributter && php bin/distributter.php
@@ -150,31 +150,31 @@ php bin/auth-telegram.php
 ## Deploy
 ```sh
 # deployment without confirmation  
-source deploy.conf && ./bin/deploy.sh deploy
+source config/deploy.conf && bin/deploy.sh deploy
 
 # Rollback to previous version
-source deploy.conf && ./bin/deploy.sh rollback
+source config/deploy.conf && bin/deploy.sh rollback
 
 # Check status (now shows cron jobs)
-source deploy.conf && ./bin/deploy.sh status
+source config/deploy.conf && bin/deploy.sh status
 
 # View logs in real time
-source deploy.conf && ./bin/deploy.sh logs
+source config/deploy.conf && bin/deploy.sh logs
 
 # Connect to server via SSH
-source deploy.conf && ./bin/deploy.sh ssh
+source config/deploy.conf && bin/deploy.sh ssh
 ```
 
 ## Monitoring & Logs
 
 ### Application Logs
 ```sh
-tail -f log.log
+tail -f var/logs/log.log
 ```
 
 ### MadelineProto Logs
 ```sh
-tail -f MadelineProto.log
+tail -f logs/MadelineProto.log
 ```
 
 ## Content Processing

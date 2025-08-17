@@ -1,7 +1,8 @@
 <?php
 
-namespace Sc\Filter;
+declare(strict_types=1);
 
+namespace Sc\Filter;
 class PostFilterException extends \RuntimeException
 {
 }

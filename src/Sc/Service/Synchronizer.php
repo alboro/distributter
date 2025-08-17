@@ -5,9 +5,7 @@ declare(strict_types=1);
 namespace Sc\Service;
 
 use danog\MadelineProto\API;
-use danog\MadelineProto\Magic;
 use danog\MadelineProto\Settings;
-use danog\MadelineProto\Settings\Ipc;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
 use Psr\Log\LoggerInterface;
@@ -43,15 +41,15 @@ final readonly class Synchronizer
 
     public function __construct(private AppConfig $config)
     {
+        $this->logger = $this->createLogger();
         // Check if application is disabled
-        if ($this->config->cronRun && $this->config->cronDisabled) {
-            echo "Application is disabled via APP_CRON_DISABLED environment variable. Exiting.\n";
+        if ($this->config->cronRun && !$this->config->cronEnabled) {
+            $this->logger->warning('Application is disabled via APP_CRON_ENABLED environment variable. Exiting.');
             exit(0);
         }
 
         $this->storage = Repository::load($this->config->storageFilePath);
 
-        $this->logger = $this->createLogger();
         // Create filter (only to check already processed posts)
         $this->postFilter = new PostFilter();
         $this->initializeServices();
@@ -220,14 +218,20 @@ final readonly class Synchronizer
     {
         $telegramRetriever = null;
         if (null !== $this->config->tgRetrieverConfig) {
-            $fixer = new MadelineProtoFixer($this->logger, dirname($this->config->tgRetrieverConfig?->sessionFile ?? 'session.madeline'));
+            $fixer = new MadelineProtoFixer($this->logger, $this->config->tgRetrieverConfig->sessionFile);
             try {
+                if (empty(glob($this->config->tgRetrieverConfig->sessionFile . '/*'))) {
+                    $this->logger->error('Telegram session file not found. Run: php bin/auth-telegram.php', [
+                        'session_file' => $this->config->tgRetrieverConfig->sessionFile
+                    ]);
+                    throw new \Exception('Telegram session required');
+                }
                 $settings = new Settings();
                 $settings->getAppInfo()->setApiId((int)$this->config->tgRetrieverConfig->apiId);
                 $settings->getAppInfo()->setApiHash($this->config->tgRetrieverConfig->apiHash);
 
                 // Disabling MadelineProto logging to avoid corrupting our logs
-                $settings->getLogger()->setType(\danog\MadelineProto\Logger::ECHO_LOGGER);
+                $settings->getLogger()->setType(\danog\MadelineProto\Logger::FILE_LOGGER);
                 $settings->getLogger()->setLevel(\danog\MadelineProto\Logger::LEVEL_FATAL);
 
                 // Settings for non-interactive mode
@@ -242,19 +246,6 @@ final readonly class Synchronizer
                 $settings->getConnection()->setRetry(false); // Disabling automatic retries
                 $settings->getConnection()->setPingInterval(30); // Increasing ping interval
 
-                // Force IPC slow mode for Docker compatibility using official method
-                if ($this->config->madelineProtoSlowIpc && !defined('MADELINE_WORKER_TYPE')) {
-                    define('MADELINE_WORKER_TYPE', 'madeline-ipc');
-                }
-
-                // Checking if the session file exists
-                if (!file_exists($this->config->tgRetrieverConfig->sessionFile)) {
-                    $this->logger->error('Telegram session file not found. Run: php bin/auth-telegram.php', [
-                        'session_file' => $this->config->tgRetrieverConfig->sessionFile
-                    ]);
-                    throw new \Exception('Telegram session required');
-                }
-
                 // Proactive health check and fixing before creating API
                 if (!$fixer->isHealthy()) {
                     $this->logger->warning('MadelineProto health check failed before API creation, attempting to fix');
@@ -266,26 +257,12 @@ final readonly class Synchronizer
                 try {
                     $madelineProto = new API($this->config->tgRetrieverConfig->sessionFile, $settings);
                 } catch (\Throwable $e) {
-                    // Check if this is a MadelineProto issue that our fixer can resolve
-                    $this->logger->warning('Failed to create MadelineProto API, attempting to fix issues', [
-                        'error' => $e->getMessage()
-                    ]);
-
-                    // Try to fix the issues
-                    if ($fixer->fixIssues()) {
-                        $this->logger->info('Issues fixed, retrying MadelineProto API creation');
-                        try {
-                            $madelineProto = new API($this->config->tgRetrieverConfig->sessionFile, $settings);
-                        } catch (\Throwable $retryError) {
-                            $this->logger->error('Failed to create MadelineProto API even after fixing issues', [
-                                'error' => $retryError->getMessage()
-                            ]);
-                            throw $retryError;
-                        }
-                    } else {
-                        $this->logger->error('Failed to fix MadelineProto issues');
-                        throw $e;
+                    if ($fixer->isHealthy()) {
+                        $this->logger->error('Failed to fix MadelineProto issues', [
+                            'error' => $e->getMessage()
+                        ]);
                     }
+                    throw $e;
                 }
 
                 // Attempting to start and verify authorization
@@ -362,8 +339,6 @@ final readonly class Synchronizer
         }
 
         try {
-            $messageSplitter = new MessageSplitter(63206); // @todo: do not split, just don't post if too long
-
             return new FacebookSender(
                 accessToken: $this->config->fbPageAccessToken,
                 pageId: $this->config->fbPageId,

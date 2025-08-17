@@ -3,18 +3,21 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../vendor/autoload.php';
+require_once dirname(__DIR__) . '/config/bootstrap.php';
 
 use Monolog\Logger;
 use Monolog\Handler\StreamHandler;
+use Sc\Config\AppConfig;
 use Sc\Integration\Tg\Retriever\MadelineProtoFixer;
+
+$config = AppConfig::fromEnvironment();
 
 // Create logger for the fixer
 $logger = new Logger('madeline-fixer');
 $logger->pushHandler(new StreamHandler('php://stdout', Logger::DEBUG));
 
 // Session path
-$sessionPath = __DIR__ . '/session.madeline'; // @todo: take from env
+$sessionPath = $config->tgRetrieverConfig->sessionFile;
 
 // Create fixer instance
 $fixer = new MadelineProtoFixer($logger, $sessionPath);

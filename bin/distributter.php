@@ -1,16 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Sc;
 
-require_once __DIR__ . '/../vendor/autoload.php';
+require_once dirname(__DIR__) . '/config/bootstrap.php';
 
-use Dotenv\Dotenv;
 use Sc\Service\Synchronizer;
 use Sc\Config\AppConfig;
-
-error_reporting(-1);
-set_time_limit(300); // 5 minutes maximum
-ignore_user_abort(false);
 
 // Check for already running process
 $lockFile = __DIR__ . '/sync.lock';
@@ -47,9 +44,6 @@ register_shutdown_function(static function() use ($lockFile) {
         unlink($lockFile);
     }
 });
-
-$dotenv = Dotenv::createUnsafeImmutable(__DIR__);
-$dotenv->load(); // Используем load() вместо safeLoad() чтобы не перезаписывать существующие переменные
 
 $syncer = new Synchronizer(
     AppConfig::fromEnvironment()

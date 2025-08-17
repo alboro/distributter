@@ -128,7 +128,7 @@ readonly class TelegramRetriever implements RetrieverInterface
     private function fetchTelegramMessages(): array
     {
         try {
-            return $this->getHistoryWithRetries();
+            return $this->getHistory();
 
         } catch (PeerNotInDbException $exception) {
             return $this->handleNotInDbException($exception);
@@ -137,26 +137,26 @@ readonly class TelegramRetriever implements RetrieverInterface
         }
     }
 
-    function ensureChannelPeer(API $mp, string $identifier): array {
-        // 1) Самый простой и универсальный путь — getInfo()
-        //    Понимает: -100..., @username, t.me/..., t.me/+inviteHash
+    private function ensureChannelPeer(API $mp, string $identifier): array {
+        // 1) The simplest and most universal way — getInfo()
+        //    Understands: -100..., @username, t.me/..., t.me/+inviteHash
         try {
             $info = $mp->getInfo($identifier);
             if (!empty($info['InputPeer']) && ($info['InputPeer']['_'] ?? '') === 'inputPeerChannel') {
                 return $info['InputPeer']; // ['_'=>'inputPeerChannel','channel_id'=>..., 'access_hash'=>...]
             }
         } catch (\Throwable $e) {
-            // идём дальше — разрулим вручную
+            // continue further — handle manually
         }
 
-        // 2) Если это инвайт-ссылка (+hash) — проверяем/импортируем
+        // 2) If this is an invite link (+hash) — check/import
         if (preg_match('~t\.me/\+([A-Za-z0-9_-]+)~', $identifier, $m)) {
             $hash = $m[1];
 
-            // а) checkChatInvite: разные типы ответов
+            // a) checkChatInvite: different response types
             try {
                 $res = $mp->messages->checkChatInvite(['hash' => $hash]);
-                // варианты: chatInviteAlready (уже состоишь), chatInvitePeek (просмотр), chatInvite (приглашение)
+                // variants: chatInviteAlready (already a member), chatInvitePeek (preview), chatInvite (invitation)
                 $chat = $res['chat'] ?? null;
                 if (!$chat && isset($res['chats'][0])) $chat = $res['chats'][0];
 
@@ -164,10 +164,10 @@ readonly class TelegramRetriever implements RetrieverInterface
                     return ['_' => 'inputPeerChannel', 'channel_id' => $chat['id'], 'access_hash' => $chat['access_hash']];
                 }
             } catch (\Throwable $e) {
-                // допустимо — пробуем importChatInvite
+                // acceptable — try importChatInvite
             }
 
-            // б) importChatInvite: вернёт Updates с массивом chats
+            // b) importChatInvite: returns Updates with chats array
             try {
                 $upd = $mp->messages->importChatInvite(['hash' => $hash]);
                 $chats = $upd['chats'] ?? [];
@@ -177,9 +177,9 @@ readonly class TelegramRetriever implements RetrieverInterface
                     }
                 }
             } catch (RPCErrorException $e) {
-                // важные кейсы: INVITE_HASH_EXPIRED / INVITE_HASH_INVALID / USER_ALREADY_PARTICIPANT
+                // important cases: INVITE_HASH_EXPIRED / INVITE_HASH_INVALID / USER_ALREADY_PARTICIPANT
                 if (in_array($e->rpc, ['USER_ALREADY_PARTICIPANT', 'USER_ALREADY_INVITED'], true)) {
-                    // Уже состоим — getPeerDialogs точечно подтянет объект
+                    // Already a member — getPeerDialogs will specifically pull the object
                     $r = $mp->messages->getPeerDialogs(['peers' => [$identifier]]);
                     foreach (($r['chats'] ?? []) as $ch) {
                         if (($ch['_'] ?? '') === 'channel' && isset($ch['id'], $ch['access_hash'])) {
@@ -187,13 +187,13 @@ readonly class TelegramRetriever implements RetrieverInterface
                         }
                     }
                 }
-                // Иначе пробросим дальше
+                // Otherwise throw it further
             }
         }
 
-        // 3) Если у тебя -100… (numeric), getPeerDialogs справится, когда БД пустая
+        // 3) If you have -100… (numeric), getPeerDialogs will handle it when DB is empty
         if (preg_match('~^-?100(\d+)$~', $identifier, $m)) {
-            // Madeline понимает и строку -100..., и InputPeer/peer string
+            // Madeline understands both -100... string and InputPeer/peer string
             $r = $mp->messages->getPeerDialogs(['peers' => [$identifier]]);
             foreach (($r['chats'] ?? []) as $ch) {
                 if (($ch['_'] ?? '') === 'channel' && isset($ch['id'], $ch['access_hash'])) {
@@ -202,7 +202,7 @@ readonly class TelegramRetriever implements RetrieverInterface
             }
         }
 
-        // 4) На крайний случай — попробуем ещё раз getInfo на "очищенном" виде
+        // 4) As a last resort — try getInfo again on "cleaned" form
         foreach ([$identifier, ltrim($identifier, '@'), preg_replace('~^https?://t\.me/~', '', $identifier)] as $cand) {
             try {
                 $info = $mp->getInfo($cand);
@@ -227,7 +227,10 @@ readonly class TelegramRetriever implements RetrieverInterface
         try {
             $result = $this->ensureChannelPeer($this->madelineProto, $this->tgRetrieverConfig->channel);
         } catch (\Throwable $e) {
-            $result = $this->ensureChannelPeer($this->madelineProto, 'https://t.me/+lBteMtQefyE5MmU0'); // @todo
+            if (null === $this->tgRetrieverConfig->inviteLink) {
+                throw $e;
+            }
+            $result = $this->ensureChannelPeer($this->madelineProto, $this->tgRetrieverConfig->inviteLink);
         }
 
         $this->logger->warning('Fetched peer channel messages!');
@@ -239,45 +242,22 @@ readonly class TelegramRetriever implements RetrieverInterface
         return $this->tgRetrieverConfig->channel;
     }
 
-    private function getHistoryWithRetries(): array
+    private function getHistory(): array
     {
-        $maxRetries = $this->tgRetrieverConfig?->maxRetries ?? 1;
-        $retryDelay = $this->tgRetrieverConfig?->retryDelay ?? 2;
+        $result = $this->madelineProto->messages->getHistory([
+            'peer' => $this->getPeer(),
+            'limit' => $this->tgRetrieverConfig->itemCount(),
+//            'offset_date' => 0, // @todo
+//            'offset_id' => 0,
+//            'max_id' => 0,
+//            'min_id' => 0,
+//            'add_offset' => 0,
+//            'hash' => [0]
+        ]);
 
-        for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
-            try {
-                $this->logger->debug("Attempting to get history (attempt {$attempt}/{$maxRetries})");
+        $this->logger->debug("Successfully retrieved history");
 
-                // Use timeout wrapper for the operation
-                $result = $this->madelineProto->messages->getHistory([
-                    'peer' => $this->getPeer(),
-                    'limit' => $this->tgRetrieverConfig->itemCount(),
-                    'offset_date' => 0,
-                    'offset_id' => 0,
-                    'max_id' => 0,
-                    'min_id' => 0,
-                    'add_offset' => 0,
-                    'hash' => [0]
-                ]);
-
-                $this->logger->debug("Successfully retrieved history on attempt {$attempt}");
-                return $result['messages'] ?? [];
-
-            } catch (\Throwable $e) {
-                $this->logger->warning("Attempt {$attempt} failed: " . $e->getMessage());
-
-                if ($attempt === $maxRetries) {
-                    throw $e; // Re-throw on final attempt
-                }
-
-                // Wait before retry
-                $this->logger->debug("Waiting {$retryDelay} seconds before retry...");
-                sleep($retryDelay);
-                $retryDelay = min($retryDelay * 2, 30); // Exponential backoff with max 30s
-            }
-        }
-
-        throw new \RuntimeException('All retry attempts failed');
+        return $result['messages'] ?? [];
     }
 
     /**

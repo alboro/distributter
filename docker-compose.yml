@@ -8,12 +8,13 @@ services:
     container_name: distributter-app
     volumes:
       - './bin:/app/bin'
+      - './config:/app/config'
+      - './var/logs:/app/var/logs'
+      - './docker/app/session.madeline.docker:/app/var/session.madeline'
+      - './shared:/app/shared'
       - './src:/app/src'
       - './vendor:/app/vendor'
-      - './storage.v3.json:/app/storage.v3.json'
-      - './docker/app/session.madeline.docker:/app/session.madeline.docker'
-      - './shared:/app/shared'
-      - './logs:/app/logs'
+      - './var/storage.v3.json:/app/var/storage.v3.json'
     tmpfs:
       - '/tmp'
       - '/var/tmp'
@@ -26,7 +27,7 @@ services:
     container_name: distributter-tts
     volumes:
       - './shared:/app/shared'
-      - './tts_models:/root/.local/share/tts'
+      - './var/tts_models:/root/.local/share/tts'
     restart: "no"
     profiles:
       - tts

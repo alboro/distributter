@@ -14,9 +14,8 @@ readonly class AppConfig
     public const TAG_OF_IGNORE = '#local';
     public function __construct(
         public bool               $mockSenders,
-        public bool               $cronDisabled,
+        public bool               $cronEnabled,
         public bool               $cronRun,
-        public bool               $madelineProtoSlowIpc,
         public int                $requestTimeoutSec,
         public string             $storageFilePath,
         public string             $logFilePath,
@@ -35,13 +34,12 @@ readonly class AppConfig
     {
         return new self(
             mockSenders: filter_var($_ENV['DRY_RUN'] ?? false, FILTER_VALIDATE_BOOLEAN),
-            cronDisabled: filter_var($_ENV['APP_CRON_DISABLED'] ?? false, FILTER_VALIDATE_BOOLEAN),
+            cronEnabled: filter_var($_ENV['APP_CRON_ENABLED'] ?? true, FILTER_VALIDATE_BOOLEAN),
             cronRun: filter_var($_ENV['CRON_RUN'] ?? false, FILTER_VALIDATE_BOOLEAN),
-            madelineProtoSlowIpc: filter_var($_ENV['MADELINE_PROTO_SLOW_IPC'] ?? false, FILTER_VALIDATE_BOOLEAN),
 
             requestTimeoutSec: (int)($_ENV['REQUEST_TIMEOUT_SEC'] ?? 30),
-            storageFilePath: $_ENV['STORAGE_FILE_PATH'] ?? __DIR__ . '/../../../storage.v3.json',
-            logFilePath: $_ENV['LOG_FILE_PATH'] ?? __DIR__ . '/../../../log.log',
+            storageFilePath: $_ENV['STORAGE_FILE_PATH'] ?? __DIR__ . '/../../../var/storage.v3.json',
+            logFilePath: $_ENV['LOG_FILE_PATH'] ?? __DIR__ . '/../../../var/logs/log.log',
 
             vkSenderConfig: VkSenderConfig::fromEnvironment(),
             vkRetrieverConfig: VkRetrieverConfig::fromEnvironment(),

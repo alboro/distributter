@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Sc\Integration\Tg\Retriever;
 
 use Psr\Log\LoggerInterface;
@@ -389,7 +391,7 @@ class MadelineProtoFixer
         $this->logger->info('🔧 Performing MadelineProto maintenance');
 
         // Clean up old log files if they're too large
-        $logFile = $this->projectRoot . '/bin/MadelineProto.log';
+        $logFile = $this->projectRoot . '/var/logs/MadelineProto.log';
         if (file_exists($logFile)) {
             $size = filesize($logFile);
             $maxSize = 50 * 1024 * 1024; // 50MB

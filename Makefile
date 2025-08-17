@@ -1,4 +1,4 @@
-.PHONY: help build up down restart logs status clean bash composer-install composer-update deploy auth run rebuild stop-all test
+.PHONY: help build up down restart logs remote-deploy remote-logs remote-status remote-ssh remote-rollback status clean bash composer-install composer-update deploy auth run rebuild stop-all test
 
 # Default target
 help: ## Show available commands
@@ -15,6 +15,7 @@ help: ## Show available commands
 	@echo "  make restart app        - Restart app"
 	@echo "  make restart tts        - Restart tts"
 	@echo "  make logs [app|tts]     - Show service logs (default: app)"
+	@echo "  make remote-logs        - Show production logs"
 	@echo "  make bash [app|tts]     - Enter container (default: app)"
 	@echo ""
 	@echo "TTS commands:"
@@ -80,13 +81,45 @@ bash: ## Enter container (make bash [app|tts])
 	docker-compose exec $$SERVICE /bin/bash
 
 # Project management
-deploy: ## Deploy project
-	@if [ ! -f deploy.conf ]; then \
+remote-deploy: ## Deploy project
+	@if [ ! -f config/deploy.conf ]; then \
 		echo "Error: deploy.conf file not found!"; \
 		echo "Please create deploy.conf from deploy.conf.dist template"; \
 		exit 1; \
 	fi
-	source deploy.conf && ./bin/deploy.sh deploy
+	source config/deploy.conf && bin/deploy.sh deploy
+
+remote-logs:
+	@if [ ! -f config/deploy.conf ]; then \
+		echo "Error: deploy.conf file not found!"; \
+		echo "Please create deploy.conf from deploy.conf.dist template"; \
+		exit 1; \
+	fi
+	source config/deploy.conf && bin/deploy.sh logs
+
+remote-status:
+	@if [ ! -f config/deploy.conf ]; then \
+		echo "Error: deploy.conf file not found!"; \
+		echo "Please create deploy.conf from deploy.conf.dist template"; \
+		exit 1; \
+	fi
+	source config/deploy.conf && bin/deploy.sh status
+
+remote-ssh:
+	@if [ ! -f config/deploy.conf ]; then \
+		echo "Error: deploy.conf file not found!"; \
+		echo "Please create deploy.conf from deploy.conf.dist template"; \
+		exit 1; \
+	fi
+	source config/deploy.conf && bin/deploy.sh ssh
+
+remote-rollback:
+	@if [ ! -f config/deploy.conf ]; then \
+		echo "Error: deploy.conf file not found!"; \
+		echo "Please create deploy.conf from deploy.conf.dist template"; \
+		exit 1; \
+	fi
+	source config/deploy.conf && bin/deploy.sh rollback
 
 auth: ## Telegram authentication
 	docker-compose exec app ./bin/auth-telegram.php

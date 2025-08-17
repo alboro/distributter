@@ -1,13 +1,14 @@
 <?php
 
-require_once __DIR__ . '/../vendor/autoload.php';
+declare(strict_types=1);
+
+namespace Sc;
+
+require_once dirname(__DIR__) . '/config/bootstrap.php';
 
 use Sc\Config\AppConfig;
 use danog\MadelineProto\API;
 use danog\MadelineProto\Settings;
-
-$dotenv = Dotenv\Dotenv::createUnsafeImmutable(__DIR__ . '/../bin/');
-$dotenv->safeLoad();
 
 $config = AppConfig::fromEnvironment();
 
