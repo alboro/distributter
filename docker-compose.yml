@@ -29,8 +29,6 @@ services:
       - './shared:/app/shared'
       - './var/tts_models:/root/.local/share/tts'
     restart: "no"
-    profiles:
-      - tts
 
 volumes:
   shared:

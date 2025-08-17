@@ -38,10 +38,10 @@ up: ## Start services
 		docker-compose up -d app; \
 	elif [ "$(filter tts,$(MAKECMDGOALS))" = "tts" ]; then \
 		echo "Starting only TTS..."; \
-		docker-compose --profile tts up -d tts; \
+		docker-compose up -d tts; \
 	else \
 		echo "Starting all services..."; \
-		docker-compose --profile tts up -d; \
+		docker-compose up -d; \
 	fi
 
 down: ## Stop containers
@@ -62,10 +62,10 @@ restart: ## Restart services
 		docker-compose restart app; \
 	elif [ "$(filter tts,$(MAKECMDGOALS))" = "tts" ]; then \
 		echo "Restarting tts..."; \
-		docker-compose --profile tts restart tts; \
+		docker-compose restart tts; \
 	else \
 		echo "Restarting all services..."; \
-		docker-compose --profile tts restart; \
+		docker-compose restart; \
 	fi
 
 logs: ## Show service logs (make logs [app|tts])
@@ -142,7 +142,7 @@ rebuild: ## Rebuild containers
 	elif [ "$(filter tts,$(MAKECMDGOALS))" = "tts" ]; then \
 		echo "Rebuilding tts container..."; \
 		docker-compose build tts; \
-		docker-compose --profile tts up -d tts; \
+		docker-compose up -d tts; \
 	else \
 		echo "Rebuilding all containers..."; \
 		make down; \
