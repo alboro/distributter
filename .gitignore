@@ -2,7 +2,7 @@
 .last_backup
 /vendor/
 /bin/.env
-/config/.env
+/config/.env*
 deploy.conf
 
 /var/session.madeline/*
