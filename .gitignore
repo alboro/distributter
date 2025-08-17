@@ -18,3 +18,15 @@ storage.v*.json
 old_new_storage.json
 new_storage.json
 reference.wav
+
+.last_backup
+/config/.env
+
+/var/session.madeline/*
+/docker/app/session.madeline.docker/*
+/var/tts_models*
+
+/var/logs/*.log
+/var/logs/*.log.*
+
+/var/storage.v*.json
