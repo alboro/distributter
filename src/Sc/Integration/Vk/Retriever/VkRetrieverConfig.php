@@ -34,7 +34,7 @@ readonly class VkRetrieverConfig
         $tagOfIgnore = $_ENV['TAG_OF_IGNORE'] ?? AppConfig::TAG_OF_IGNORE;
         $excludePostIds = isset($_ENV['EXCLUDE_VK_POST_IDS']) ? explode(',', $_ENV['EXCLUDE_VK_POST_IDS']) : [];
 
-        // Если какой-то из параметров не указан, возвращаем null
+        // If any of the parameters is not specified, return null
         if (null === $token || null === $groupId || null === $itemCount || null === $tagOfIgnore){
             return null;
         }

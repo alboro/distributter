@@ -19,15 +19,40 @@ def accent_to_unicode(text):
         letter = match.group(1)
         return accent_map.get(letter, letter)
 
-    # Ищем паттерн: знак ударения (+) + гласная
+    # Look for pattern: accent mark (+) + vowel
     pattern = r"\+([аеёиоуыэюяАЕЁИОУЫЭЮЯ])"
     result = re.sub(pattern, replace_accent, text)
 
     return result
 
-def main():
-    # Инициализируем RUAccent
+def normalize_numbers(text):
+    """Replaces numbers with their word representation"""
+    def replace_number(match):
+        number = int(match.group())
+        try:
+            # Convert number to words in Russian
+            return num2words(number, lang='ru')
+        except:
+            return match.group()  # If conversion failed, return as is
+
+    # Search for numbers (sequences of digits)
+    result = re.sub(r'\b\d+\b', replace_number, text)
+    return result
+
+def process_text():
+    """Main text processing function"""
     try:
+        # Read text from stdin
+        text = sys.stdin.read().strip()
+
+        if not text:
+            print("", end="")
+            return
+
+        # First normalize numbers
+        text = normalize_numbers(text)
+
+        # Initialize RUAccent
         accentizer = RUAccent()
         accentizer.load()
     except Exception as e:

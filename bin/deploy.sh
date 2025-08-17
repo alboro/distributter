@@ -93,7 +93,11 @@ deploy_to_server() {
     log "INFO" "Step 2: Resetting local changes"
     ssh -i "$SSH_KEY" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
         "cd '$SERVER_PATH' && git reset --hard HEAD && git clean -fd && echo 'Local changes reset'"
-# todo: add the command `make down` at the server here.
+
+    log "INFO" "Step 2.1: Stopping services"
+    ssh -i "$SSH_KEY" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
+        "cd '$SERVER_PATH' && make down"
+
     log "INFO" "Step 3: Updating code from Git"
     ssh -i "$SSH_KEY" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
         "cd '$SERVER_PATH' && git fetch origin && git reset --hard origin/$DEPLOY_BRANCH"
@@ -105,7 +109,10 @@ deploy_to_server() {
 #    log "INFO" "Step 5: Checking syntax"
 #    ssh -i "$SSH_KEY" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
 #        "cd '$SERVER_PATH' && php -l src/Sc/Service/Synchronizer.php"
-# todo: add the command `make up` at the server here.
+
+    log "INFO" "Step 5.1: Starting services"
+    ssh -i "$SSH_KEY" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
+        "cd '$SERVER_PATH' && make up app"
 
     log "INFO" "Step 6: Logging deployment"
     ssh -i "$SSH_KEY" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
