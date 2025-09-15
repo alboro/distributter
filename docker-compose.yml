@@ -11,7 +11,6 @@ services:
       - './config:/app/config'
       - './var/logs:/app/var/logs'
       - './docker/app/session.madeline.docker:/app/var/session.madeline'
-      - './shared:/app/shared'
       - './src:/app/src'
       - './vendor:/app/vendor'
       - './var/storage.v3.json:/app/var/storage.v3.json'
@@ -19,16 +18,3 @@ services:
       - '/tmp'
       - '/var/tmp'
     restart: unless-stopped
-
-  tts:
-    build:
-      context: .
-      dockerfile: docker/tts/Dockerfile
-    container_name: distributter-tts
-    volumes:
-      - './shared:/app/shared'
-      - './var/tts_models:/root/.local/share/tts'
-    restart: "no"
-
-volumes:
-  shared:

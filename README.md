@@ -220,9 +220,9 @@ php bin/auth-telegram.php
 
 ## TODO
 * Add system abstraction (e.g., tg2tg sync) and more flexibility via configs
-* Split everything into separate processes by retrieving/sending/channel criteria. Use SymfonyMessager/SymfonyLocks. host process waits for child process to be finished. after timeout host process thows exception. 
+* Split everything into separate processes by retrieving/sending/channel criteria. Use SymfonyMessager/SymfonyLocks. host process waits for child process to be finished. after timeout host process thows exception.
 * think about internal sender/retriever,
-* use tts: Text normalization -> Reverse proxy(nginx/traefik) -> (litserve+xtts_v2 / https://github.com/astramind-ai/Auralis / Mycroft Mimic3 / https://github.com/abdulazizsalimov/rhvoice-docker)
+* use tts: Text normalization -> litserve+xtts_v2/Auralis/Mycroft Mimic3/rhvoice-docker
 * tg:
   * not all links are parsed from tg
   * vk is text (not quite, some kind of markdown), tg is html, reflect it in Post model
@@ -240,6 +240,7 @@ php bin/auth-telegram.php
   * sender can use tts: tts+image+ffmpeg=video, being sent via api (TTS OR get audio from TG)
   * retriever can use stt: try https://github.com/coqui-ai/STT-models
 * Add RSS support
+* Add Git support
 * Add Instagram support
 * Add Facebook support
 
