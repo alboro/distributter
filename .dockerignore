@@ -10,8 +10,14 @@ deploy.conf.dist
 
 # Логи и временные файлы
 *.log
+*.log.*
 logs/
+var/
+bin/session.madeline/
 var/session.madeline/
+docker/app/session.madeline.docker/
+config/.env*
+config/deploy.conf
 
 # TTS модели (если не нужны в контейнере)
 var/tts_models/

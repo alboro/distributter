@@ -110,9 +110,9 @@ deploy_to_server() {
 #    ssh -i "$SSH_KEY" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
 #        "cd '$SERVER_PATH' && php -l src/Sc/Service/Synchronizer.php"
 
-    log "INFO" "Step 5.1: Starting services"
+    log "INFO" "Step 5.1: Building and starting services"
     ssh -i "$SSH_KEY" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
-        "cd '$SERVER_PATH' && make up app"
+        "cd '$SERVER_PATH' && docker compose up -d --build app"
 
     log "INFO" "Step 6: Logging deployment"
     ssh -i "$SSH_KEY" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
@@ -120,7 +120,7 @@ deploy_to_server() {
 
     log "INFO" "Step 7: Cleaning up backup"
     ssh -i "$SSH_KEY" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
-        "cd '$SERVER_PATH' && rm -f .last_backup && backup_dir=\$(cat .last_backup 2>/dev/null || echo '') && [ -n \"\$backup_dir\" ] && rm -rf \"\$backup_dir\" 2>/dev/null && echo 'Backup removed' || echo 'Backup not found'"
+        "cd '$SERVER_PATH' && backup_dir=\$(cat .last_backup 2>/dev/null || echo '') && [ -n \"\$backup_dir\" ] && rm -rf \"\$backup_dir\" 2>/dev/null && rm -f .last_backup && echo 'Backup removed' || echo 'Backup not found'"
 
     log "INFO" "Deployment completed successfully!"
     log "INFO" "Application is being run via cron"
